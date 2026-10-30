@@ -16,7 +16,6 @@ param (
     [string]$User = "ubuntu"
 )
 
-# Em PowerShell 5.1, comandos nativos que escrevem avisos no stderr geram NativeCommandError se estiver como Stop
 $ErrorActionPreference = "Continue"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -35,21 +34,29 @@ if (-not (Test-Path $KeyFile)) {
 
 $ResolvedKey = (Resolve-Path $KeyFile).Path
 
-# 1.1 Se for chave PuTTY (.ppk), converter automaticamente para OpenSSH (.key)
+# 1.1 Se for chave PuTTY (.ppk), converter para OpenSSH no diretorio TEMP
 if ($ResolvedKey.EndsWith(".ppk", [System.StringComparison]::OrdinalIgnoreCase)) {
     Write-Host "-> Detectada chave em formato PuTTY (.ppk). Convertendo para OpenSSH..." -ForegroundColor Yellow
-    $ConvertedKey = [System.IO.Path]::ChangeExtension($ResolvedKey, ".key")
-    python tools/convert_ppk.py "$ResolvedKey" "$ConvertedKey"
-    if (Test-Path $ConvertedKey) {
-        $ResolvedKey = $ConvertedKey
-        Write-Host "[OK] Utilizando chave OpenSSH convertida: $ResolvedKey" -ForegroundColor Green
+    $TempKey = Join-Path $env:TEMP "linkdesk_oracle.key"
+    if (Test-Path $TempKey) {
+        try {
+            icacls "$TempKey" /grant "$($env:USERNAME):(F)" | Out-Null
+            Remove-Item $TempKey -Force -ErrorAction SilentlyContinue
+        } catch {}
+    }
+    
+    $convertOut = python tools/convert_ppk.py "$ResolvedKey" "$TempKey"
+    if (Test-Path $TempKey) {
+        $ResolvedKey = $TempKey
+        Write-Host "[OK] Chave convertida com sucesso para: $ResolvedKey" -ForegroundColor Green
     } else {
-        Write-Host "[AVISO] Nao foi possivel converter .ppk automaticamente. Tentando prosseguir..." -ForegroundColor Yellow
+        Write-Host "[ERRO] Falha ao converter chave PuTTY: $convertOut" -ForegroundColor Red
+        exit 1
     }
 }
 
-# 2. Ajustar permissoes da chave no Windows (evita erro 'Permissions are too open')
-Write-Host "-> Ajustando permissoes de seguranca da chave SSH no Windows..." -ForegroundColor Gray
+# 2. Ajustar permissoes de seguranca da chave no Windows (exigencia do OpenSSH)
+Write-Host "-> Ajustando permissoes de seguranca da chave SSH..." -ForegroundColor Gray
 try {
     icacls "$ResolvedKey" /inheritance:r | Out-Null
     icacls "$ResolvedKey" /grant:r "$($env:USERNAME):(R)" | Out-Null
@@ -57,37 +64,44 @@ try {
     Write-Host "[AVISO] Nao foi possivel redefinir permissoes via icacls. Prosseguindo..." -ForegroundColor Yellow
 }
 
-# 3. Testar conectividade SSH com retry
+# 3. Testar conectividade SSH com diagnostico em tempo real
 Write-Host "-> Conectando a instancia Oracle Cloud ($Ip)..." -ForegroundColor Yellow
-$MaxRetries = 15
+$MaxRetries = 10
 $Connected = $false
 
-$SshBaseArgs = @(
+$SshArgs = @(
     "-i", "$ResolvedKey",
     "-o", "BatchMode=yes",
     "-o", "StrictHostKeyChecking=no",
     "-o", "UserKnownHostsFile=/dev/null",
-    "-o", "LogLevel=ERROR",
-    "-o", "ConnectTimeout=8"
+    "-o", "ConnectTimeout=6"
 )
 
 for ($i = 1; $i -le $MaxRetries; $i++) {
-    $test = & ssh $SshBaseArgs "$User@$Ip" "echo OK" 2>$null
-    if ($test -match "OK") {
+    $rawOut = & ssh $SshArgs "$User@$Ip" "echo OK" 2>&1
+    $outputStr = ($rawOut | Out-String).Trim()
+
+    if ($outputStr -match "OK") {
         $Connected = $true
         Write-Host "[OK] Conexao SSH estabelecida com sucesso!" -ForegroundColor Green
         break
     }
-    Write-Host "  Instancia ainda inicializando... Tentativa $i/$MaxRetries (aguardando 5s)..." -ForegroundColor Gray
-    Start-Sleep -Seconds 5
+    
+    # Filtra avisos conhecidos do known_hosts para exibir apenas o motivo real
+    $filteredMsg = ($outputStr -split "`r?`n" | Where-Object { $_ -notmatch "Permanently added" -and $_.Trim() -ne "" }) -join " "
+    if (-not $filteredMsg) { $filteredMsg = "Aguardando resposta do servidor..." }
+    
+    Write-Host "  Tentativa $i/$MaxRetries: $filteredMsg" -ForegroundColor DarkGray
+    Start-Sleep -Seconds 4
 }
 
 if (-not $Connected) {
-    Write-Host "[ERRO] Nao foi possivel conectar via SSH em $User@$Ip apos $MaxRetries tentativas." -ForegroundColor Red
-    Write-Host "Dicas importantes:" -ForegroundColor Yellow
-    Write-Host " 1. Verifique se a VM esta 'Executando' na Oracle." -ForegroundColor Yellow
-    Write-Host " 2. Verifique se a porta 22 (SSH) esta liberada na Security List da VCN." -ForegroundColor Yellow
-    Write-Host " 3. Certifique-se de que a chave privada corresponde a chave cadastrada na VM." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "[ERRO] Nao foi possivel autenticar via SSH em $User@$Ip apos $MaxRetries tentativas." -ForegroundColor Red
+    Write-Host "Verificacoes importantes:" -ForegroundColor Yellow
+    Write-Host " 1. A instancia esta como 'Executando' na Oracle Cloud?" -ForegroundColor Yellow
+    Write-Host " 2. A porta 22 (SSH) esta liberada nas Regras de Entrada da Security List da VCN?" -ForegroundColor Yellow
+    Write-Host " 3. Se aparecer 'Permission denied (publickey)', a chave privada nao corresponde a cadastrada na VM." -ForegroundColor Yellow
     exit 1
 }
 
@@ -98,11 +112,11 @@ $Cmd2 = "if [ -d /opt/LinkDesk ]; then cd /opt/LinkDesk && sudo git pull; else s
 $Cmd3 = "cd /opt/LinkDesk/server && sudo bash setup.sh $Ip"
 $FullRemoteCmd = "$Cmd1 && $Cmd2 && $Cmd3"
 
-& ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$User@$Ip" $FullRemoteCmd
+& ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$User@$Ip" $FullRemoteCmd
 
 # 5. Capturar a Chave Publica do Servidor
 Write-Host "-> Obtendo chave criptografica do servidor..." -ForegroundColor Yellow
-$PubKey = & ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$User@$Ip" "sudo cat /opt/LinkDesk/server/data/id_ed25519.pub 2>/dev/null"
+$PubKey = & ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$User@$Ip" "sudo cat /opt/LinkDesk/server/data/id_ed25519.pub 2>/dev/null"
 
 if ($PubKey -and $PubKey.Trim().Length -gt 10) {
     $PubKey = $PubKey.Trim()

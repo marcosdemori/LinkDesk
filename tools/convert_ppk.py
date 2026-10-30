@@ -1,5 +1,6 @@
 import sys
 import os
+import stat
 import base64
 import struct
 
@@ -77,8 +78,25 @@ def convert_ppk(ppk_path, out_path=None):
             format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption()
         )
-        with open(out_path, 'wb') as f:
-            f.write(pem)
+
+        # Remove read-only if file exists
+        if os.path.exists(out_path):
+            try:
+                os.chmod(out_path, stat.S_IWRITE | stat.S_IREAD)
+                os.remove(out_path)
+            except Exception:
+                pass
+
+        try:
+            with open(out_path, 'wb') as f:
+                f.write(pem)
+        except PermissionError:
+            # Fallback to temp dir if destination is permission locked
+            temp_dir = os.environ.get('TEMP', os.environ.get('TMP', '.'))
+            out_path = os.path.join(temp_dir, 'linkdesk_oracle.key')
+            with open(out_path, 'wb') as f:
+                f.write(pem)
+
         print(f"[OK] Chave convertida com sucesso para OpenSSH: {out_path}")
         return out_path
     except Exception as err:
