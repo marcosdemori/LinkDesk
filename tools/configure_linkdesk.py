@@ -8,6 +8,7 @@ e a Chave Publica Criptografica de ponta a ponta (E2EE).
 import sys
 import os
 import re
+import argparse
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLIENT_DIR = os.path.join(ROOT_DIR, "client")
@@ -40,14 +41,12 @@ def configure(app_name="LinkDesk", server_host="connect.linkdesk.io", pub_key=""
     print("------------------------------------------")
 
     # 1. Configurar hbb_common/src/config.rs
-    # APP_NAME
     replace_in_file(
         CONFIG_RS,
         r'pub static ref APP_NAME:\s*RwLock<String>\s*=\s*RwLock::new\("[^"]*"\.to_owned\(\)\);',
         f'pub static ref APP_NAME: RwLock<String> = RwLock::new("{app_name}".to_owned());'
     )
 
-    # RENDEZVOUS_SERVERS
     if server_host:
         replace_in_file(
             CONFIG_RS,
@@ -55,7 +54,6 @@ def configure(app_name="LinkDesk", server_host="connect.linkdesk.io", pub_key=""
             f'pub const RENDEZVOUS_SERVERS: &[&str] = &["{server_host}"];'
         )
 
-    # RS_PUB_KEY
     if pub_key:
         replace_in_file(
             CONFIG_RS,
@@ -95,7 +93,18 @@ def configure(app_name="LinkDesk", server_host="connect.linkdesk.io", pub_key=""
     print("\n[OK] Configuracao aplicada com sucesso!")
 
 if __name__ == "__main__":
-    name = sys.argv[1] if len(sys.argv) > 1 else "LinkDesk"
-    host = sys.argv[2] if len(sys.argv) > 2 else "connect.linkdesk.io"
-    key = sys.argv[3] if len(sys.argv) > 3 else ""
-    configure(name, host, key)
+    parser = argparse.ArgumentParser(description="Configurador de parametros do LinkDesk")
+    parser.add_argument("pos_name", nargs="?", default="LinkDesk", help="Nome do App")
+    parser.add_argument("pos_host", nargs="?", default="connect.linkdesk.io", help="Host do Servidor")
+    parser.add_argument("pos_key", nargs="?", default="", help="Chave Publica")
+    parser.add_argument("-n", "--name", dest="name", help="Nome do App")
+    parser.add_argument("-s", "--server", dest="server", help="Host do Servidor")
+    parser.add_argument("-k", "--key", dest="key", help="Chave Publica")
+
+    args = parser.parse_args()
+
+    app_name = args.name or args.pos_name or "LinkDesk"
+    server_host = args.server or args.pos_host or "connect.linkdesk.io"
+    pub_key = args.key or args.pos_key or ""
+
+    configure(app_name, server_host, pub_key)
