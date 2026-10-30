@@ -18,8 +18,14 @@ echo -e "${COLOR_BLUE}=====================================================${COL
 
 # 1. Obter o IP ou Domínio Público do Servidor
 PUBLIC_IP=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || echo "SEU_IP_OU_DOMINIO")
-read -p "Informe o IP público ou Domínio do servidor [Padrão: $PUBLIC_IP]: " INPUT_HOST
-HOST=${INPUT_HOST:-$PUBLIC_IP}
+if [ -n "$1" ]; then
+    HOST="$1"
+elif [ -t 0 ]; then
+    read -t 10 -p "Informe o IP público ou Domínio do servidor [Padrão: $PUBLIC_IP]: " INPUT_HOST || true
+    HOST=${INPUT_HOST:-$PUBLIC_IP}
+else
+    HOST=$PUBLIC_IP
+fi
 
 echo -e "${COLOR_GREEN}✓ Host configurado: $HOST${COLOR_RESET}"
 
