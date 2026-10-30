@@ -13,6 +13,7 @@ client/flutter/.packages
 # Server data & private keys
 server/data/
 server/data/*.pub
+server/bin/
 *.key
 
 # OS & IDE
