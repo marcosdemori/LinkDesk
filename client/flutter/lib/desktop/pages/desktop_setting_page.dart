@@ -23,15 +23,14 @@ import 'package:flutter_hbb/models/state_model.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/login.dart';
 
 const double _kTabWidth = 200;
 const double _kTabHeight = 42;
-const double _kCardFixedWidth = 540;
-const double _kCardLeftMargin = 15;
+const double _kCardFixedWidth = 860;
+const double _kCardLeftMargin = 28;
 const double _kContentHMargin = 15;
 const double _kContentHSubMargin = _kContentHMargin + 33;
 const double _kCheckBoxLeftMargin = 10;
@@ -506,18 +505,62 @@ class _GeneralState extends State<_General> {
         return const Offstage();
       }
 
-      return _Card(title: 'Service', children: [
-        _Button(serviceStop.value ? 'Start' : 'Stop', () {
-          () async {
-            serviceBtnEnabled.value = false;
-            await start_service(serviceStop.value);
-            // enable the button after 1 second
-            Future.delayed(const Duration(seconds: 1), () {
-              serviceBtnEnabled.value = true;
-            });
-          }();
-        }, enabled: serviceBtnEnabled.value)
-      ]);
+      return _Card(
+        title: 'Serviço em Segundo Plano',
+        title_suffix: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: serviceStop.value
+                  ? Colors.amber.withOpacity(0.15)
+                  : Colors.green.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: serviceStop.value
+                    ? Colors.amber.withOpacity(0.5)
+                    : Colors.green.withOpacity(0.5),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 8,
+                  color: serviceStop.value ? Colors.amber : Colors.green,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  serviceStop.value ? 'Pausado' : 'Em Execução',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: serviceStop.value ? Colors.amber : Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        children: [
+          Text(
+            'Permite conexões de entrada com inicialização automática do LinkDesk junto ao Windows.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+          ).marginOnly(left: 10, bottom: 8),
+          _Button(serviceStop.value ? 'Iniciar Serviço' : 'Parar Serviço', () {
+            () async {
+              serviceBtnEnabled.value = false;
+              await start_service(serviceStop.value);
+              Future.delayed(const Duration(seconds: 1), () {
+                serviceBtnEnabled.value = true;
+              });
+            }();
+          }, enabled: serviceBtnEnabled.value)
+        ],
+      );
     });
   }
 
@@ -526,11 +569,19 @@ class _GeneralState extends State<_General> {
     final outgoingOnly = bind.isOutgoingOnly();
     final showAutoUpdate = (isWindows && bind.mainIsInstalled()) ||
     (isMacOS && bind.mainIsInstalled() && bind.mainIsInstalledDaemon(prompt: false) && !bind.isCustomClient());
-    final children = <Widget>[
+
+    final uiChildren = <Widget>[
       if (!isWeb && !incomingOnly)
         _OptionCheckBox(context, 'Confirm before closing multiple tabs',
             kOptionEnableConfirmClosingTabs,
             isServer: false),
+      if (!isWeb && !incomingOnly)
+        _OptionCheckBox(
+          context,
+          'Open connection in new tab',
+          kOptionOpenNewConnInTabs,
+          isServer: false,
+        ),
       if (!incomingOnly)
         _OptionCheckBox(
           context,
@@ -541,14 +592,141 @@ class _GeneralState extends State<_General> {
             reloadAllWindows();
           },
         ),
+      if (!incomingOnly)
+        _OptionCheckBox(
+          context,
+          'Show monitor switch button on the main toolbar',
+          kOptionAllowMonitorSwitchMainToolbar,
+          isServer: false,
+          update: (enabled) async {
+            if (!enabled) {
+              await mainSetLocalBoolOption(
+                  kOptionAllowMonitorSwitchMinToolbar, false);
+            }
+            if (mounted) setState(() {});
+            reloadAllWindows();
+            if (enabled) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final ctx = _minToolbarOptionKey.currentContext;
+                if (ctx != null) {
+                  Scrollable.ensureVisible(
+                    ctx,
+                    alignment: 0.5,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              });
+            }
+          },
+        ),
+      if (mainGetLocalBoolOptionSync(kOptionAllowMonitorSwitchMainToolbar))
+        KeyedSubtree(
+          key: _minToolbarOptionKey,
+          child: _OptionCheckBox(
+            context,
+            'Show on the minimized toolbar',
+            kOptionAllowMonitorSwitchMinToolbar,
+            isServer: false,
+            update: (_) {
+              reloadAllWindows();
+            },
+          ).marginOnly(left: _kCheckBoxLeftMargin * 3),
+        ),
+      if (!isWeb && !incomingOnly)
+        Tooltip(
+          message: translate('sync-clipboard-between-sessions-tip'),
+          child: _OptionCheckBox(
+            context,
+            'Sync clipboard between sessions',
+            kOptionAllowSyncClipboardBetweenSessions,
+            isServer: false,
+          ),
+        ),
+      if (!bind.isIncomingOnly())
+        _OptionCheckBox(
+          context,
+          'keep-awake-during-outgoing-sessions-label',
+          kOptionKeepAwakeDuringOutgoingSessions,
+          isServer: false,
+        ),
+      if (!bind.isDisableAccount())
+        _OptionCheckBox(
+          context,
+          'note-at-conn-end-tip',
+          kOptionAllowAskForNoteAtEndOfConnection,
+          isServer: false,
+          optSetter: (key, value) async {
+            if (value && !gFFI.userModel.isLogin) {
+              final res = await loginDialog();
+              if (res != true) return;
+            }
+            await mainSetLocalBoolOption(key, value);
+          },
+        ),
+    ];
+
+    final perfChildren = <Widget>[
       if (!isWeb && !outgoingOnly)
         _OptionCheckBox(context, 'Adaptive bitrate', kOptionEnableAbr),
       if (!isWeb) wallpaper(),
+      if (isWindows && !outgoingOnly)
+        _OptionCheckBox(
+          context,
+          'Capture screen using DirectX',
+          kOptionDirectxCapture,
+        ),
+      if (isWindows && !incomingOnly)
+        Tooltip(
+          message: translate('d3d_render_tip'),
+          child: _OptionCheckBox(
+            context,
+            'Use D3D rendering',
+            kOptionD3DRender,
+            isServer: false,
+          ),
+        ),
+      if (!isWeb && !incomingOnly)
+        Tooltip(
+          message: translate('texture_render_tip'),
+          child: _OptionCheckBox(
+            context,
+            'Use texture rendering',
+            kOptionTextureRender,
+            optGetter: bind.mainGetUseTextureRender,
+            optSetter: (k, v) async =>
+                await bind.mainSetLocalOption(key: k, value: v ? 'Y' : 'N'),
+          ),
+        ),
+      if (isLinux && !incomingOnly)
+        Tooltip(
+          message: translate('software_render_tip'),
+          child: _OptionCheckBox(
+            context,
+            'Always use software rendering',
+            kOptionAllowAlwaysSoftwareRender,
+          ),
+        ),
+    ];
+
+    final netChildren = <Widget>[
       if (!isWeb && !incomingOnly) ...[
         _OptionCheckBox(
           context,
-          'Open connection in new tab',
-          kOptionOpenNewConnInTabs,
+          'Enable UDP hole punching',
+          kOptionEnableUdpPunch,
+          isServer: false,
+        ),
+        _OptionCheckBox(
+          context,
+          'Enable TCP hole punching',
+          kOptionEnableTcpPunch,
+          isServer: false,
+        ),
+        _OptionCheckBox(
+          context,
+          'Enable IPv6 P2P connection',
+          kOptionEnableIpv6Punch,
           isServer: false,
         ),
         Tooltip(
@@ -560,39 +738,8 @@ class _GeneralState extends State<_General> {
             isServer: false,
           ),
         ),
-        // though this is related to GUI, but opengl problem affects all users, so put in config rather than local
-        if (isLinux)
-          Tooltip(
-            message: translate('software_render_tip'),
-            child: _OptionCheckBox(
-              context,
-              "Always use software rendering",
-              kOptionAllowAlwaysSoftwareRender,
-            ),
-          ),
-        if (!isWeb)
-          Tooltip(
-            message: translate('texture_render_tip'),
-            child: _OptionCheckBox(
-              context,
-              "Use texture rendering",
-              kOptionTextureRender,
-              optGetter: bind.mainGetUseTextureRender,
-              optSetter: (k, v) async =>
-                  await bind.mainSetLocalOption(key: k, value: v ? 'Y' : 'N'),
-            ),
-          ),
-        if (isWindows)
-          Tooltip(
-            message: translate('d3d_render_tip'),
-            child: _OptionCheckBox(
-              context,
-              "Use D3D rendering",
-              kOptionD3DRender,
-              isServer: false,
-            ),
-          ),
       ],
+      if (!incomingOnly) ...webrtcOptions(context),
       if (!isWeb && !bind.isCustomClient())
         _OptionCheckBox(
           context,
@@ -607,112 +754,16 @@ class _GeneralState extends State<_General> {
           kOptionAllowAutoUpdate,
           isServer: true,
         ),
-      if (isWindows && !outgoingOnly)
-        _OptionCheckBox(
-          context,
-          'Capture screen using DirectX',
-          kOptionDirectxCapture,
-        ),
-      if (!isWeb && !incomingOnly) ...[
-        _OptionCheckBox(
-          context,
-          'Enable TCP hole punching',
-          kOptionEnableTcpPunch,
-          isServer: false,
-        ),
-        _OptionCheckBox(
-          context,
-          'Enable UDP hole punching',
-          kOptionEnableUdpPunch,
-          isServer: false,
-        ),
-        _OptionCheckBox(
-          context,
-          'Enable IPv6 P2P connection',
-          kOptionEnableIpv6Punch,
-          isServer: false,
-        ),
-      ],
-      if (!incomingOnly) ...webrtcOptions(context),
-      if (!isWeb && !incomingOnly)
-        Tooltip(
-          message: translate('sync-clipboard-between-sessions-tip'),
-          child: _OptionCheckBox(
-            context,
-            'Sync clipboard between sessions',
-            kOptionAllowSyncClipboardBetweenSessions,
-            isServer: false,
-          ),
-        ),
     ];
 
-    // Add client-side wakelock option for desktop platforms
-    if (!bind.isIncomingOnly()) {
-      children.add(_OptionCheckBox(
-        context,
-        'keep-awake-during-outgoing-sessions-label',
-        kOptionKeepAwakeDuringOutgoingSessions,
-        isServer: false,
-      ));
-    }
-
-    if (!bind.isDisableAccount()) {
-      children.add(_OptionCheckBox(
-        context,
-        'note-at-conn-end-tip',
-        kOptionAllowAskForNoteAtEndOfConnection,
-        isServer: false,
-        optSetter: (key, value) async {
-          if (value && !gFFI.userModel.isLogin) {
-            final res = await loginDialog();
-            if (res != true) return;
-          }
-          await mainSetLocalBoolOption(key, value);
-        },
-      ));
-    }
-    children.add(_OptionCheckBox(
-      context,
-      'Show monitor switch button on the main toolbar',
-      kOptionAllowMonitorSwitchMainToolbar,
-      isServer: false,
-      update: (enabled) async {
-        if (!enabled) {
-          await mainSetLocalBoolOption(
-              kOptionAllowMonitorSwitchMinToolbar, false);
-        }
-        if (mounted) setState(() {});
-        reloadAllWindows();
-        if (enabled) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final ctx = _minToolbarOptionKey.currentContext;
-            if (ctx != null) {
-              Scrollable.ensureVisible(
-                ctx,
-                alignment: 0.5,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-              );
-            }
-          });
-        }
-      },
-    ));
-    if (mainGetLocalBoolOptionSync(kOptionAllowMonitorSwitchMainToolbar)) {
-      children.add(KeyedSubtree(
-        key: _minToolbarOptionKey,
-        child: _OptionCheckBox(
-          context,
-          'Show on the minimized toolbar',
-          kOptionAllowMonitorSwitchMinToolbar,
-          isServer: false,
-          update: (_) {
-            reloadAllWindows();
-          },
-        ).marginOnly(left: _kCheckBoxLeftMargin * 3),
-      ));
-    }
-    return _Card(title: 'Other', children: children);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Card(title: 'Interface e Usabilidade', children: uiChildren),
+        _Card(title: 'Desempenho e Aceleracao de Video', children: perfChildren),
+        _Card(title: 'Conexao Direta P2P e Rede', children: netChildren),
+      ],
+    );
   }
 
   Widget wallpaper() {
@@ -1037,6 +1088,37 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
             preventMouseKeyBuilder(
               block: locked,
               child: Column(children: [
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: MyTheme.accent.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: MyTheme.accent.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: MyTheme.accent, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              "Seguranca de Acesso e Permissoes",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "Defina quais permissoes conceder ao tecnico durante a sessao e configure senha fixa para acesso nao supervisionado quando necessario.",
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 permissions(context),
                 password(context),
                 _Card(title: '2FA', children: [tfa()]),
@@ -1919,16 +2001,47 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
 
     final divider = const Divider(height: 1, indent: 16, endIndent: 16);
     return _Card(
-      title: 'Network',
+      title: 'Rede & Servidores',
       children: [
         Container(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.25)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            "Servidor Privado LinkDesk Conectado",
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF15803D), fontSize: 13),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            "Servico de Sinalizacao e Relay ativo com Criptografia de Ponta a Ponta (E2EE Ed25519).",
+                            style: TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               if (!hideServer)
                 listTile(
                   icon: Icons.dns_outlined,
-                  title: 'ID/Relay Server',
+                  title: 'Configurar Servidor ID / Relay',
                   onTap: () => showServerSettings(gFFI.dialogManager, setState),
                 ),
               if (!hideProxy && !hideServer) divider,
@@ -2285,7 +2398,41 @@ class _AccountState extends State<_Account> {
     return ListView(
       controller: scrollController,
       children: [
-        _Card(title: 'Account', children: [accountAction(), useInfo()]),
+        _Card(title: 'Conta & Catalogo LinkDesk', children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: MyTheme.accent.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: MyTheme.accent.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.hub_outlined, color: MyTheme.accent, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        "Autenticacao Corporativa LinkDesk",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "Faca login com sua conta LinkDesk para sincronizar catalogo de clientes frequentes, historico de conexoes e permissoes na nuvem privada da empresa.",
+                        style: TextStyle(fontSize: 12, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          accountAction(),
+          useInfo(),
+        ]),
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
@@ -2293,7 +2440,7 @@ class _AccountState extends State<_Account> {
   Widget accountAction() {
     return Obx(() => _Button(
         gFFI.userModel.userName.value.isEmpty
-            ? 'Login'
+            ? 'Entrar com Conta LinkDesk'
             : '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})',
         () => {
               gFFI.userModel.userName.value.isEmpty
@@ -2595,13 +2742,11 @@ class _AboutState extends State<_About> {
       final scrollController = ScrollController();
       return SingleChildScrollView(
         controller: scrollController,
-        child: _Card(title: translate('About RustDesk'), children: [
+        child: _Card(title: 'Sobre o LinkDesk', children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(
-                height: 8.0,
-              ),
+              const SizedBox(height: 8.0),
               SelectionArea(
                   child: Text('${translate('Version')}: $version')
                       .marginSymmetric(vertical: 4.0)),
@@ -2615,48 +2760,76 @@ class _AboutState extends State<_About> {
               SelectionArea(
                   child: Text('${translate('ID')}: $myId')
                       .marginSymmetric(vertical: 4.0)),
+              const SizedBox(height: 6),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com/privacy.html');
-                  },
-                  child: Text(
-                    translate('Privacy Statement'),
-                    style: linkStyle,
-                  ).marginSymmetric(vertical: 4.0)),
-              InkWell(
-                  onTap: () {
-                    launchUrlString('https://rustdesk.com');
-                  },
-                  child: Text(
-                    translate('Website'),
-                    style: linkStyle,
-                  ).marginSymmetric(vertical: 4.0)),
-              Container(
-                decoration: const BoxDecoration(color: Color(0xFF2c8cff)),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
-                child: SelectionArea(
-                    child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Tech Pte. Ltd.\n$license',
-                            style: const TextStyle(color: Colors.white),
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Row(
+                          children: [
+                            Icon(Icons.security, color: MyTheme.accent),
+                            SizedBox(width: 10),
+                            Text("Privacidade & Seguranca"),
+                          ],
+                        ),
+                        content: const Text(
+                          "O LinkDesk opera com criptografia ponta a ponta (E2EE) utilizando cifras autenticadas ChaCha20-Poly1305 e chaves Ed25519 de 256 bits.\n\n"
+                          "Todas as transmissoes de video, controle remoto e arquivos trafegam diretamente entre os participantes ou atraves da infraestrutura dedicada privada da organizacao.\n\n"
+                          "Nenhum dado, gravacao ou telemetria e compartilhado com servidores externos.",
+                          style: TextStyle(height: 1.5),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text("Fechar"),
                           ),
-                          Text(
-                            translate('Slogan_tip'),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white),
-                          )
                         ],
                       ),
+                    );
+                  },
+                  child: const Text(
+                    'Declaracao de Privacidade & Seguranca',
+                    style: TextStyle(
+                      decoration: TextDecoration.underline,
+                      color: MyTheme.accent,
                     ),
-                  ],
-                )),
+                  ).marginSymmetric(vertical: 4.0)),
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(
+                  color: MyTheme.accent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                child: const SelectionArea(
+                  child: Row(
+                    children: [
+                      Icon(Icons.shield_rounded, color: Colors.white, size: 36),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'LinkDesk Remote Desktop',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Copyright (c) 2026 LinkDesk. Todos os direitos reservados.\nAcesso Remoto Corporativo de Alta Performance.',
+                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ).marginSymmetric(vertical: 4.0)
             ],
           ).marginOnly(left: _kContentHMargin)
@@ -2675,36 +2848,49 @@ Widget _Card(
     {required String title,
     required List<Widget> children,
     List<Widget>? title_suffix}) {
-  return Row(
-    children: [
-      Flexible(
-        child: SizedBox(
-          width: _kCardFixedWidth,
-          child: Card(
+  return Builder(builder: (context) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: _kCardFixedWidth),
+        margin: const EdgeInsets.only(left: 28, right: 28, top: 16),
+        child: Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: Theme.of(context).dividerColor.withOpacity(0.12),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Expanded(
-                        child: Text(
-                      translate(title),
-                      textAlign: TextAlign.start,
-                      style: const TextStyle(
-                        fontSize: _kTitleFontSize,
+                      child: Text(
+                        translate(title),
+                        textAlign: TextAlign.start,
+                        style: const TextStyle(
+                          fontSize: _kTitleFontSize,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    )),
-                    ...?title_suffix
+                    ),
+                    ...?title_suffix,
                   ],
-                ).marginOnly(left: _kContentHMargin, top: 10, bottom: 10),
-                ...children
-                    .map((e) => e.marginOnly(top: 4, right: _kContentHMargin)),
+                ),
+                const SizedBox(height: 12),
+                ...children.map((e) => e.marginOnly(top: 4, right: _kContentHMargin)),
               ],
-            ).marginOnly(bottom: 10),
-          ).marginOnly(left: _kCardLeftMargin, top: 15),
+            ),
+          ),
         ),
       ),
-    ],
-  );
+    );
+  });
 }
 
 // ignore: non_constant_identifier_names
@@ -3043,41 +3229,48 @@ Widget _lock(
 ) {
   return Offstage(
       offstage: !locked,
-      child: Row(
-        children: [
-          Flexible(
-            child: SizedBox(
-              width: _kCardFixedWidth,
-              child: Card(
-                child: ElevatedButton(
-                  child: SizedBox(
-                      height: 25,
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.security_sharp,
-                              size: 20,
-                            ),
-                            Text(translate(label)).marginOnly(left: 5),
-                          ]).marginSymmetric(vertical: 2)),
-                  onPressed: () async {
-                    final unlockPin = bind.mainGetUnlockPin();
-                    if (unlockPin.isEmpty || isUnlockPinDisabled()) {
-                      bool checked = await callMainCheckSuperUserPermission();
-                      if (checked) {
-                        onUnlock();
-                      }
-                    } else {
-                      checkUnlockPinDialog(unlockPin, onUnlock);
+      child: Builder(builder: (context) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: _kCardFixedWidth),
+            margin: const EdgeInsets.only(left: 28, right: 28, top: 16),
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Theme.of(context).dividerColor.withOpacity(0.12),
+                ),
+              ),
+              child: ElevatedButton(
+                child: SizedBox(
+                    height: 28,
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.security_sharp,
+                            size: 20,
+                          ),
+                          Text(translate(label)).marginOnly(left: 8),
+                        ]).marginSymmetric(vertical: 4)),
+                onPressed: () async {
+                  final unlockPin = bind.mainGetUnlockPin();
+                  if (unlockPin.isEmpty || isUnlockPinDisabled()) {
+                    bool checked = await callMainCheckSuperUserPermission();
+                    if (checked) {
+                      onUnlock();
                     }
-                  },
-                ).marginSymmetric(horizontal: 2, vertical: 4),
-              ).marginOnly(left: _kCardLeftMargin),
-            ).marginOnly(top: 10),
+                  } else {
+                    checkUnlockPinDialog(unlockPin, onUnlock);
+                  }
+                },
+              ).marginSymmetric(horizontal: 8, vertical: 8),
+            ),
           ),
-        ],
-      ));
+        );
+      }));
 }
 
 _LabeledTextField(

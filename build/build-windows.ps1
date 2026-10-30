@@ -97,19 +97,33 @@ if ($SkipCargo) {
 
 # 4. Organizar os Binarios Finais
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
+$AppFolder = Join-Path $ReleaseDir $AppName
+New-Item -ItemType Directory -Force -Path $AppFolder | Out-Null
 
-$BuiltPortable = Join-Path $ClientDir "rustdesk_portable.exe"
-if (Test-Path $BuiltPortable) {
+# Copiar Portable / SOS
+$PossiblePortables = @(
+    (Join-Path $ClientDir "target\release\rustdesk-portable-packer.exe"),
+    (Join-Path $ClientDir "rustdesk_portable.exe"),
+    (Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1)
+)
+
+$FoundPortable = $PossiblePortables | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+if ($FoundPortable) {
     $DestPortable = Join-Path $ReleaseDir "$AppName-SOS.exe"
-    Copy-Item $BuiltPortable $DestPortable -Force
-    Write-Host "[OK] Executavel Portatil gerado: $DestPortable" -ForegroundColor Green
+    Copy-Item $FoundPortable $DestPortable -Force
+    Write-Host "[OK] Executavel Portatil (SOS) gerado: $DestPortable" -ForegroundColor Green
 }
 
-$BuiltRelease = Join-Path $ClientDir "flutter\build\windows\x64\runner\Release\rustdesk.exe"
-if (Test-Path $BuiltRelease) {
-    $DestSetup = Join-Path $ReleaseDir "$AppName.exe"
-    Copy-Item $BuiltRelease $DestSetup -Force
-    Write-Host "[OK] Executavel Completo gerado: $DestSetup" -ForegroundColor Green
+# Copiar Pasta Completa do Aplicativo
+$FlutterRelease = Join-Path $ClientDir "flutter\build\windows\x64\runner\Release"
+if (Test-Path $FlutterRelease) {
+    Copy-Item "$FlutterRelease\*" $AppFolder -Recurse -Force
+    if (Test-Path "$AppFolder\rustdesk.exe") {
+        Copy-Item "$AppFolder\rustdesk.exe" "$AppFolder\$AppName.exe" -Force
+        Remove-Item "$AppFolder\rustdesk.exe" -Force
+    }
+    Write-Host "[OK] Pacote Completo gerado em: $AppFolder" -ForegroundColor Green
+    Write-Host "[OK] Executavel: $AppFolder\$AppName.exe" -ForegroundColor Green
 }
 
 Write-Host "`n==========================================================" -ForegroundColor Green

@@ -12,6 +12,7 @@ import re
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLIENT_DIR = os.path.join(ROOT_DIR, "client")
 CONFIG_RS = os.path.join(CLIENT_DIR, "libs", "hbb_common", "src", "config.rs")
+PORTABLE_CARGO = os.path.join(CLIENT_DIR, "libs", "portable", "Cargo.toml")
 RUNNER_RC = os.path.join(CLIENT_DIR, "flutter", "windows", "runner", "Runner.rc")
 PUBSPEC_YAML = os.path.join(CLIENT_DIR, "flutter", "pubspec.yaml")
 
@@ -72,6 +73,23 @@ def configure(app_name="LinkDesk", server_host="connect.linkdesk.io", pub_key=""
         RUNNER_RC,
         r'VALUE "FileDescription", "[^"]*"',
         f'VALUE "FileDescription", "{app_name} Remote Access"'
+    )
+
+    # 3. Configurar Portable Packer metadata
+    replace_in_file(
+        PORTABLE_CARGO,
+        r'ProductName = "[^"]*"',
+        f'ProductName = "{app_name}"'
+    )
+    replace_in_file(
+        PORTABLE_CARGO,
+        r'FileDescription = "[^"]*"',
+        f'FileDescription = "{app_name} Remote Desktop"'
+    )
+    replace_in_file(
+        PORTABLE_CARGO,
+        r'OriginalFilename = "[^"]*"',
+        f'OriginalFilename = "{app_name}-SOS.exe"'
     )
 
     print("\n[OK] Configuracao aplicada com sucesso!")

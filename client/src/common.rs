@@ -1294,7 +1294,12 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    let default_server = config::RENDEZVOUS_SERVERS.first().copied().unwrap_or("");
+    if !default_server.is_empty() {
+        format!("http://{}:{}", default_server, config::RENDEZVOUS_PORT - 2)
+    } else {
+        "".to_owned()
+    }
 }
 
 #[inline]
@@ -1311,9 +1316,13 @@ pub fn is_public(url: &str) -> bool {
 }
 
 pub fn get_tcp_punch_enabled() -> bool {
+    let v = get_local_option(keys::OPTION_ENABLE_TCP_PUNCH);
+    if v.is_empty() {
+        return true;
+    }
     config::option2bool(
         keys::OPTION_ENABLE_TCP_PUNCH,
-        &get_local_option(keys::OPTION_ENABLE_TCP_PUNCH),
+        &v,
     )
 }
 
@@ -1343,11 +1352,10 @@ pub fn get_local_option(key: &str) -> String {
     if key == keys::OPTION_ENABLE_UDP_PUNCH
         || key == keys::OPTION_ENABLE_IPV6_PUNCH
         || key == keys::OPTION_ENABLE_WEBRTC
+        || key == keys::OPTION_ENABLE_TCP_PUNCH
     {
         if v.is_empty() {
-            if !is_public(&Config::get_rendezvous_server()) {
-                return "N".to_owned();
-            }
+            return "Y".to_owned();
         }
     }
     if key == "lang" && (v == "pt" || v == "br") {

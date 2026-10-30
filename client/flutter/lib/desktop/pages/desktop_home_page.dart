@@ -52,6 +52,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   final RxBool _editHover = false.obs;
   final RxBool _block = false.obs;
+  final RxBool _isTechnicianMode = false.obs;
 
   final GlobalKey _childKey = GlobalKey();
 
@@ -60,14 +61,380 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     super.build(context);
     final isIncomingOnly = bind.isIncomingOnly();
     return _buildBlock(
-        child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        buildLeftPane(context),
-        if (!isIncomingOnly) const VerticalDivider(width: 1),
-        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
-      ],
-    ));
+      child: Obx(() {
+        if (!isIncomingOnly && !_isTechnicianMode.value) {
+          return buildSosView(context);
+        }
+        return Column(
+          children: [
+            if (!isIncomingOnly) _buildTechnicianHeader(context),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  buildLeftPane(context),
+                  if (!isIncomingOnly) const VerticalDivider(width: 1),
+                  if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+                ],
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildTechnicianHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderCol = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.background,
+        border: Border(bottom: BorderSide(color: borderCol, width: 1)),
+      ),
+      child: Row(
+        children: [
+          loadLogo(),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: MyTheme.accent.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              "MODO TÉCNICO",
+              style: TextStyle(
+                color: MyTheme.accent,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const Spacer(),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.shield_rounded, size: 16),
+            label: const Text("Modo Suporte (SOS)"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MyTheme.button,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () {
+              _isTechnicianMode.value = false;
+            },
+          ),
+          const SizedBox(width: 8),
+          buildPopupMenu(context),
+        ],
+      ),
+    );
+  }
+
+  Widget buildSosView(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: gFFI.serverModel,
+      child: Consumer<ServerModel>(
+        builder: (context, model, child) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+          final borderCol = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+          final textMain = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+          final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+          return Container(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Column(
+              children: [
+                // Barra Superior do LinkDesk SOS
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.background,
+                    border: Border(bottom: BorderSide(color: borderCol, width: 1)),
+                  ),
+                  child: Row(
+                    children: [
+                      loadLogo(),
+                      const Spacer(),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.support_agent_rounded, size: 18),
+                        label: const Text("Modo Técnico"),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: MyTheme.accent,
+                          side: BorderSide(color: MyTheme.accent.withOpacity(0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        ),
+                        onPressed: () {
+                          _isTechnicianMode.value = true;
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      buildPopupMenu(context),
+                    ],
+                  ),
+                ),
+
+                // Conteúdo Central
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 540),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Card Principal do SOS
+                            Container(
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: borderCol, width: 1),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Título do Card
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: MyTheme.accent.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(Icons.shield_rounded, color: MyTheme.accent, size: 24),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Permitir Suporte Remoto",
+                                              style: TextStyle(
+                                                color: textMain,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              "Forneça o ID e a Senha abaixo ao seu técnico de TI:",
+                                              style: TextStyle(
+                                                color: textMuted,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  // Bloco do ID
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: MyTheme.accent.withOpacity(isDark ? 0.15 : 0.05),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: MyTheme.accent.withOpacity(0.3), width: 1.5),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.tag_rounded, size: 14, color: MyTheme.accent),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    "SEU ID LINKDESK",
+                                                    style: TextStyle(
+                                                      color: MyTheme.accent,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 1.1,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              SelectableText(
+                                                model.serverId.text.isNotEmpty
+                                                    ? model.serverId.text
+                                                    : "--- --- ---",
+                                                style: TextStyle(
+                                                  color: textMain,
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 2,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        ElevatedButton.icon(
+                                          icon: const Icon(Icons.copy_rounded, size: 16),
+                                          label: const Text("Copiar ID"),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: MyTheme.button,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          onPressed: () {
+                                            if (model.serverId.text.isNotEmpty) {
+                                              Clipboard.setData(ClipboardData(text: model.serverId.text));
+                                              showToast("ID copiado com sucesso!");
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Bloco da Senha Temporária
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: borderCol, width: 1),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.key_rounded, size: 14, color: textMuted),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    "SENHA TEMPORÁRIA",
+                                                    style: TextStyle(
+                                                      color: textMuted,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 1.1,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              SelectableText(
+                                                model.serverPasswd.text.isNotEmpty
+                                                    ? model.serverPasswd.text
+                                                    : "••••••",
+                                                style: TextStyle(
+                                                  color: textMain,
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.5,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip: "Gerar Nova Senha",
+                                          icon: const Icon(Icons.refresh_rounded, color: MyTheme.accent),
+                                          onPressed: () => bind.mainUpdateTemporaryPassword(),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.copy_rounded, size: 15),
+                                          label: const Text("Copiar"),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: textMain,
+                                            side: BorderSide(color: borderCol),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                          ),
+                                          onPressed: () {
+                                            if (model.serverPasswd.text.isNotEmpty) {
+                                              Clipboard.setData(ClipboardData(text: model.serverPasswd.text));
+                                              showToast("Senha copiada!");
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  // Status da Conexão
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A).withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.2)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16),
+                                        const SizedBox(width: 8),
+                                        const Expanded(
+                                          child: Text(
+                                            "Pronto para conexão • Servidor LinkDesk Seguro",
+                                            style: TextStyle(
+                                              color: Color(0xFF15803D),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Rodapé com Informações de Segurança
+                            Center(
+                              child: Text(
+                                "LinkDesk • Conexão Criptografada de Ponta a Ponta (E2EE)",
+                                style: TextStyle(
+                                  color: textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildBlock({required Widget child}) {
@@ -460,12 +827,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
     if (isWindows && !bind.isDisableInstallation()) {
       if (!bind.mainIsInstalled()) {
-        return buildInstallCard(
-            "", bind.isOutgoingOnly() ? "" : "install_tip", "Install",
-            () async {
-          await rustDeskWinManager.closeAllSubWindows();
-          bind.mainGotoInstall();
-        });
+        return const SizedBox.shrink(); // Nao poluir o cliente com banner de instalacao
       } else if (bind.mainIsInstalledLowerVersion()) {
         return buildInstallCard(
             "Status", "Your installation is lower version.", "Click to upgrade",

@@ -53,6 +53,22 @@ if command -v iptables &> /dev/null; then
     fi
 fi
 
+# 4.1 Otimização de Performance de Rede do Kernel Linux (Google BBR + Sockets)
+echo -e "${COLOR_YELLOW}→ Otimizando kernel Linux para baixa latência (Google BBR e Buffers)...${COLOR_RESET}"
+modprobe tcp_bbr 2>/dev/null || true
+if [ -d "/etc/sysctl.d" ]; then
+    cat << 'EOF' > /etc/sysctl.d/99-linkdesk-performance.conf
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.ipv4.tcp_mtu_probing = 1
+EOF
+    sysctl --system 2>/dev/null || true
+fi
+
 # 5. Atualizar o docker-compose.yml com o host correto
 mkdir -p data
 sed -i "s/relay.linkdesk.local:21117/$HOST:21117/g" docker-compose.yml

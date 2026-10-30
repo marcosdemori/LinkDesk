@@ -16,6 +16,13 @@ server/data/*.pub
 server/bin/
 *.key
 
+# Logs
+client/logs/
+*.log
+
+# Compiled release binaries (use GitHub Releases)
+release/
+
 # OS & IDE
 .vscode/
 .idea/

@@ -121,30 +121,27 @@ O script atualizará automaticamente o core em Rust (`config.rs`) e os metadados
 
 ---
 
-## 💻 4. Configuração do Ambiente de Compilação no Windows
+## 📦 4. Executáveis Prontos para Uso (`release/`)
 
-Para compilar o executável portátil (`LinkDesk-SOS.exe`) e o instalador (`LinkDesk.exe`) localmente:
+Os binários do **LinkDesk** já foram compilados com sucesso e estão disponíveis na raiz do projeto:
 
-### Passo 1: Instalar Rust & Cargo
-Abra o PowerShell como **Administrador** e execute:
-```powershell
-winget install --id Rustlang.Rustup -e
-rustup default stable-x86_64-pc-windows-msvc
-```
+| Arquivo / Pasta | Tamanho | Descrição |
+| :--- | :--- | :--- |
+| [`release\LinkDesk-SOS.exe`](file:///c:/Projetos/acesso-remoto/release/LinkDesk-SOS.exe) | ~24.2 MB | **Executável Único Portátil (SOS):** O cliente final não instala nada; basta dar dois cliques, visualizar o ID de 9 dígitos e senha temporária para autorizar o acesso remoto. |
+| [`release\LinkDesk\LinkDesk.exe`](file:///c:/Projetos/acesso-remoto/release/LinkDesk/LinkDesk.exe) | Pacote Completo | **Aplicação Completa para o Técnico / Empresa:** Permite conectar em clientes remotos, gerenciar lista de computadores e rodar como serviço em background. |
 
-### Passo 2: Instalar o Flutter SDK
-No PowerShell:
-```powershell
-git clone https://github.com/flutter/flutter.git -b stable C:\src\flutter
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\src\flutter\bin", "User")
-```
+---
 
-### Passo 3: Compilar com 1 Comando
-Feche e abra novamente o terminal para carregar o novo PATH e execute:
-```powershell
-powershell -File build\build-windows.ps1
-```
+## 💻 5. Recompilação Automatizada (Caso Queira Mudar Configurações)
 
-O script compilará a engine em Rust, construirá a interface Flutter e gerará os binários finais na pasta:
-* `release/LinkDesk-SOS.exe` (Portátil para suporte rápido, estilo HopToDesk)
-* `release/LinkDesk.exe` (Instalador completo com suporte a serviço do Windows)
+Para recompilar os executáveis no futuro (por exemplo, após apontar para o IP definitivo da sua VPS):
+
+1. Execute a injeção do seu novo servidor:
+   ```powershell
+   python tools\configure_linkdesk.py "LinkDesk" "SEU_IP_OU_DOMINIO" "SUA_CHAVE_PUBLICA"
+   ```
+2. Execute o script de build:
+   ```powershell
+   powershell -File build\build-windows.ps1
+   ```
+O script cuidará de toda a compilação cruzada (Rust C FFI + Flutter Engine + Empacotador Portátil Brotli).
