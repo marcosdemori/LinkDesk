@@ -23,33 +23,55 @@ Write-Host "Servidor   : $ServerHost"
 Write-Host "Chave Pub  : $(if ($ServerPubKey) { $ServerPubKey } else { '(Padrao / Nao informada)' })"
 Write-Host "----------------------------------------------------------"
 
-# 1. Carregar caminhos padrao no PATH da sessao atual
-$CargoBin = "C:\Users\Marcos De Mori\.cargo\bin"
-if (-not (Test-Path $CargoBin)) {
-    $CargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-}
-if ((Test-Path $CargoBin) -and ($env:Path -notlike "*$CargoBin*")) {
-    $env:Path = "$CargoBin;" + $env:Path
-}
-
-$FlutterBin = "C:\src\flutter\bin"
-if ((Test-Path $FlutterBin) -and ($env:Path -notlike "*$FlutterBin*")) {
-    $env:Path = "$FlutterBin;" + $env:Path
-}
-
-$VcpkgDir = "C:\vcpkg"
-if (Test-Path $VcpkgDir) {
-    $env:VCPKG_ROOT = $VcpkgDir
-    [Environment]::SetEnvironmentVariable("VCPKG_ROOT", $VcpkgDir, "User")
-}
-
-$LlvmBin = "C:\Program Files\LLVM\bin"
-if (Test-Path "$LlvmBin\libclang.dll") {
-    $env:LIBCLANG_PATH = $LlvmBin
-    if ($env:Path -notlike "*$LlvmBin*") {
-        $env:Path = "$LlvmBin;" + $env:Path
+# 1. Carregar caminhos padrao no PATH da sessao atual (suporte a C:\ e D:\Dev)
+$CandidateCargo = @(
+    "D:\Dev\.cargo\bin",
+    "C:\Users\Marcos De Mori\.cargo\bin",
+    (Join-Path $env:USERPROFILE ".cargo\bin")
+)
+foreach ($c in $CandidateCargo) {
+    if (Test-Path $c) {
+        if ($env:Path -notlike "*$c*") { $env:Path = "$c;" + $env:Path }
+        $env:CARGO_HOME = Split-Path -Parent $c
+        break
     }
-    [Environment]::SetEnvironmentVariable("LIBCLANG_PATH", $LlvmBin, "User")
+}
+
+$CandidateFlutter = @(
+    "D:\Dev\flutter\bin",
+    "C:\src\flutter\bin"
+)
+foreach ($f in $CandidateFlutter) {
+    if (Test-Path $f) {
+        if ($env:Path -notlike "*$f*") { $env:Path = "$f;" + $env:Path }
+        $env:FLUTTER_ROOT = Split-Path -Parent $f
+        break
+    }
+}
+
+$CandidateVcpkg = @(
+    "D:\Dev\vcpkg",
+    "C:\vcpkg"
+)
+foreach ($v in $CandidateVcpkg) {
+    if (Test-Path $v) {
+        $env:VCPKG_ROOT = $v
+        [Environment]::SetEnvironmentVariable("VCPKG_ROOT", $v, "User")
+        break
+    }
+}
+
+$CandidateLlvm = @(
+    "C:\Program Files\LLVM\bin",
+    "D:\Dev\LLVM\bin"
+)
+foreach ($l in $CandidateLlvm) {
+    if (Test-Path "$l\libclang.dll") {
+        $env:LIBCLANG_PATH = $l
+        if ($env:Path -notlike "*$l*") { $env:Path = "$l;" + $env:Path }
+        [Environment]::SetEnvironmentVariable("LIBCLANG_PATH", $l, "User")
+        break
+    }
 }
 
 # 2. Verificar Pre-requisitos
@@ -66,7 +88,7 @@ if (-not (Get-Command "cargo" -ErrorAction SilentlyContinue)) {
 }
 
 if (-not (Get-Command "flutter" -ErrorAction SilentlyContinue)) {
-    $MissingTools += "Flutter SDK (git clone https://github.com/flutter/flutter.git -b stable C:\src\flutter ; adicionar C:\src\flutter\bin ao PATH)"
+    $MissingTools += "Flutter SDK (adicionar bin ao PATH)"
 }
 
 if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
@@ -84,11 +106,11 @@ if ($MissingTools.Count -gt 0) {
 
 Write-Host "[OK] Todas as ferramentas estao disponiveis!" -ForegroundColor Green
 
-# 2. Injetar Configuracoes e Marca
+# 3. Injetar Configuracoes e Marca
 Write-Host "Injetando marca e parametros do servidor..." -ForegroundColor Yellow
 python "$RepoRoot\tools\configure_linkdesk.py" "$AppName" "$ServerHost" "$ServerPubKey"
 
-# 3. Executar o Build
+# 4. Executar o Build
 Write-Host "Iniciando compilacao do core Rust e interface Flutter..." -ForegroundColor Yellow
 Set-Location $ClientDir
 
@@ -98,16 +120,22 @@ if ($SkipCargo) {
     python build.py --flutter
 }
 
-# 4. Organizar os Binarios Finais
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERRO] python build.py falhou com codigo $LASTEXITCODE" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+
+# 5. Organizar os Binarios Finais
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 $AppFolder = Join-Path $ReleaseDir $AppName
 New-Item -ItemType Directory -Force -Path $AppFolder | Out-Null
 
 # Copiar Portable / SOS
 $PossiblePortables = @(
-    (Join-Path $ClientDir "target\release\rustdesk-portable-packer.exe"),
     (Join-Path $ClientDir "rustdesk_portable.exe"),
-    (Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1)
+    (Join-Path $ClientDir "target\release\rustdesk-portable-packer.exe"),
+    (Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1),
+    (Join-Path $ClientDir "flutter\build\windows\x64\runner\Release\rustdesk.exe")
 )
 
 $FoundPortable = $PossiblePortables | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
@@ -127,6 +155,12 @@ if (Test-Path $FlutterRelease) {
     }
     Write-Host "[OK] Pacote Completo gerado em: $AppFolder" -ForegroundColor Green
     Write-Host "[OK] Executavel: $AppFolder\$AppName.exe" -ForegroundColor Green
+}
+
+$OutputFiles = Get-ChildItem -Path $ReleaseDir -Recurse -File
+if ($OutputFiles.Count -eq 0) {
+    Write-Host "[ERRO] Nenhum arquivo foi gerado em $ReleaseDir!" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host "`n==========================================================" -ForegroundColor Green

@@ -49,11 +49,15 @@ jobs:
 
       - name: Inject LinkDesk Oracle Cloud Configuration
         run: |
-          python tools/configure_linkdesk.py "LinkDesk" "163.176.175.48" "J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI="
+          $hostServer = if ("${{ secrets.SERVER_HOST }}") { "${{ secrets.SERVER_HOST }}" } else { "connect.linkdesk.io" }
+          $pubKey = if ("${{ secrets.SERVER_PUBKEY }}") { "${{ secrets.SERVER_PUBKEY }}" } else { "" }
+          python tools/configure_linkdesk.py "LinkDesk" $hostServer $pubKey
 
       - name: Compile LinkDesk Windows Executables
         run: |
-          powershell -ExecutionPolicy Bypass -File build/build-windows.ps1 -ServerHost "163.176.175.48" -ServerPubKey "J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI="
+          $hostServer = if ("${{ secrets.SERVER_HOST }}") { "${{ secrets.SERVER_HOST }}" } else { "connect.linkdesk.io" }
+          $pubKey = if ("${{ secrets.SERVER_PUBKEY }}") { "${{ secrets.SERVER_PUBKEY }}" } else { "" }
+          powershell -ExecutionPolicy Bypass -File build/build-windows.ps1 -ServerHost $hostServer -ServerPubKey $pubKey
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
