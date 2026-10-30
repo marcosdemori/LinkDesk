@@ -91,7 +91,7 @@ for ($i = 1; $i -le $MaxRetries; $i++) {
     $filteredMsg = ($outputStr -split "`r?`n" | Where-Object { $_ -notmatch "Permanently added" -and $_.Trim() -ne "" }) -join " "
     if (-not $filteredMsg) { $filteredMsg = "Aguardando resposta do servidor..." }
     
-    Write-Host "  Tentativa $i/$MaxRetries: $filteredMsg" -ForegroundColor DarkGray
+    Write-Host "  Tentativa $i/${MaxRetries} - $filteredMsg" -ForegroundColor DarkGray
     Start-Sleep -Seconds 4
 }
 
