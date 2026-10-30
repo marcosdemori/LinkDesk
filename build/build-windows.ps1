@@ -23,7 +23,24 @@ Write-Host "Servidor   : $ServerHost"
 Write-Host "Chave Pub  : $(if ($ServerPubKey) { $ServerPubKey } else { '(Padrao / Nao informada)' })"
 Write-Host "----------------------------------------------------------"
 
-# 1. Verificar Pre-requisitos
+# 1. Carregar caminhos padrao no PATH da sessao atual
+$CargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+if ((Test-Path $CargoBin) -and ($env:Path -notlike "*$CargoBin*")) {
+    $env:Path = "$CargoBin;" + $env:Path
+}
+
+$FlutterBin = "C:\src\flutter\bin"
+if ((Test-Path $FlutterBin) -and ($env:Path -notlike "*$FlutterBin*")) {
+    $env:Path = "$FlutterBin;" + $env:Path
+}
+
+$VcpkgDir = "C:\vcpkg"
+if (Test-Path $VcpkgDir) {
+    $env:VCPKG_ROOT = $VcpkgDir
+    [Environment]::SetEnvironmentVariable("VCPKG_ROOT", $VcpkgDir, "User")
+}
+
+# 2. Verificar Pre-requisitos
 Write-Host "Verificando ferramentas de desenvolvimento..." -ForegroundColor Yellow
 
 $MissingTools = @()
