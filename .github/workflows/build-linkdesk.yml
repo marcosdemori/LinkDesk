@@ -39,7 +39,6 @@ jobs:
 
       - name: Setup LLVM / libclang
         run: |
-          choco install llvm -y --version 18.1.8
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
