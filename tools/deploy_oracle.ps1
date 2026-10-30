@@ -3,14 +3,14 @@
     Deploy 100% automatizado do servidor LinkDesk na Oracle Cloud Infrastructure.
 
 .EXAMPLE
-    .\tools\deploy_oracle.ps1 -Ip 137.131.149.127 -KeyFile "D:\Projetos\_Ferramentas\SSH\Oracle\LinkDesk.key"
+    .\tools\deploy_oracle.ps1 -Ip 137.131.149.127 -KeyFile "D:\Projetos\_Ferramentas\SSH\Oracle\Privada.ppk"
 #>
 
 param (
     [Parameter(Mandatory = $true, HelpMessage = "IP publico da instancia Oracle Cloud")]
     [string]$Ip,
 
-    [Parameter(Mandatory = $true, HelpMessage = "Caminho do arquivo da chave SSH (.key ou .pem)")]
+    [Parameter(Mandatory = $true, HelpMessage = "Caminho do arquivo da chave SSH (.key, .pem ou .ppk)")]
     [string]$KeyFile,
 
     [string]$User = "ubuntu"
@@ -33,6 +33,19 @@ if (-not (Test-Path $KeyFile)) {
 }
 
 $ResolvedKey = (Resolve-Path $KeyFile).Path
+
+# 1.1 Se for chave PuTTY (.ppk), converter automaticamente para OpenSSH (.key)
+if ($ResolvedKey.EndsWith(".ppk", [System.StringComparison]::OrdinalIgnoreCase)) {
+    Write-Host "-> Detectada chave em formato PuTTY (.ppk). Convertendo para OpenSSH..." -ForegroundColor Yellow
+    $ConvertedKey = [System.IO.Path]::ChangeExtension($ResolvedKey, ".key")
+    python tools/convert_ppk.py "$ResolvedKey" "$ConvertedKey"
+    if (Test-Path $ConvertedKey) {
+        $ResolvedKey = $ConvertedKey
+        Write-Host "[OK] Utilizando chave OpenSSH convertida: $ResolvedKey" -ForegroundColor Green
+    } else {
+        Write-Host "[AVISO] Nao foi possivel converter .ppk automaticamente. Tentando prosseguir..." -ForegroundColor Yellow
+    }
+}
 
 # 2. Ajustar permissoes da chave no Windows (evita erro 'Permissions are too open')
 Write-Host "-> Ajustando permissoes de seguranca da chave SSH no Windows..." -ForegroundColor Gray
