@@ -36,16 +36,21 @@ if ! docker compose version &> /dev/null; then
     apt-get update && apt-get install -y docker-compose-plugin || yum install -y docker-compose-plugin
 fi
 
-# 4. Configurar Firewall (UFW se ativo)
+# 4. Configurar Firewall (UFW e iptables do Oracle Cloud/AWS se presentes)
+echo -e "${COLOR_YELLOW}→ Configurando regras de firewall local (portas 21115-21119)...${COLOR_RESET}"
 if command -v ufw &> /dev/null && ufw status | grep -q "Status: active"; then
-    echo -e "${COLOR_YELLOW}→ Liberando portas no UFW (21115-21119)...${COLOR_RESET}"
-    ufw allow 21115/tcp
-    ufw allow 21116/tcp
+    ufw allow 21115:21119/tcp
     ufw allow 21116/udp
-    ufw allow 21117/tcp
-    ufw allow 21118/tcp
-    ufw allow 21119/tcp
     ufw reload
+fi
+
+# Ajuste especifico para imagens Oracle Cloud (iptables padrão bloqueante)
+if command -v iptables &> /dev/null; then
+    iptables -I INPUT 1 -p tcp --dport 21115:21119 -j ACCEPT 2>/dev/null || true
+    iptables -I INPUT 1 -p udp --dport 21116 -j ACCEPT 2>/dev/null || true
+    if command -v netfilter-persistent &> /dev/null; then
+        netfilter-persistent save 2>/dev/null || true
+    fi
 fi
 
 # 5. Atualizar o docker-compose.yml com o host correto

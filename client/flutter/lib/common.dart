@@ -248,18 +248,18 @@ class ColorThemeExtension extends ThemeExtension<ColorThemeExtension> {
 class MyTheme {
   MyTheme._();
 
-  static const Color grayBg = Color(0xFFEFEFF2);
-  static const Color accent = Color(0xFF0071FF);
-  static const Color accent50 = Color(0x770071FF);
-  static const Color accent80 = Color(0xAA0071FF);
-  static const Color canvasColor = Color(0xFF212121);
-  static const Color border = Color(0xFFCCCCCC);
-  static const Color idColor = Color(0xFF00B6F0);
-  static const Color darkGray = Color.fromARGB(255, 148, 148, 148);
-  static const Color cmIdColor = Color(0xFF21790B);
-  static const Color dark = Colors.black87;
-  static const Color button = Color(0xFF2C8CFF);
-  static const Color hoverBorder = Color(0xFF999999);
+  static const Color grayBg = Color(0xFFF1F5F9); // Slate-100 moderno corporativo
+  static const Color accent = Color(0xFF1D4ED8); // Azul Corporativo (Royal Blue)
+  static const Color accent50 = Color(0x771D4ED8);
+  static const Color accent80 = Color(0xAA1D4ED8);
+  static const Color canvasColor = Color(0xFF0F172A); // Slate-900 Corporativo
+  static const Color border = Color(0xFFCBD5E1);
+  static const Color idColor = Color(0xFF0284C7); // Azul Oceano para destaque legivel do ID
+  static const Color darkGray = Color(0xFF64748B);
+  static const Color cmIdColor = Color(0xFF16A34A);
+  static const Color dark = Color(0xFF0F172A);
+  static const Color button = Color(0xFF1E40AF);
+  static const Color hoverBorder = Color(0xFF94A3B8);
 
   // ListTile
   static const ListTileThemeData listTileTheme = ListTileThemeData(

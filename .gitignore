@@ -6,7 +6,6 @@ Cargo.lock
 # Flutter build
 .dart_tool/
 .packages
-build/
 client/flutter/build/
 client/flutter/.dart_tool/
 client/flutter/.packages
