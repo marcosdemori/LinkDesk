@@ -16,7 +16,8 @@ param (
     [string]$User = "ubuntu"
 )
 
-$ErrorActionPreference = "Stop"
+# Em PowerShell 5.1, comandos nativos que escrevem avisos no stderr geram NativeCommandError se estiver como Stop
+$ErrorActionPreference = "Continue"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "       LinkDesk - Deploy Automatico na Oracle Cloud       " -ForegroundColor White
@@ -61,8 +62,17 @@ Write-Host "-> Conectando a instancia Oracle Cloud ($Ip)..." -ForegroundColor Ye
 $MaxRetries = 15
 $Connected = $false
 
+$SshBaseArgs = @(
+    "-i", "$ResolvedKey",
+    "-o", "BatchMode=yes",
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "UserKnownHostsFile=/dev/null",
+    "-o", "LogLevel=ERROR",
+    "-o", "ConnectTimeout=8"
+)
+
 for ($i = 1; $i -le $MaxRetries; $i++) {
-    $test = ssh -i "$ResolvedKey" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 "$User@$Ip" "echo OK" 2>$null
+    $test = & ssh $SshBaseArgs "$User@$Ip" "echo OK" 2>$null
     if ($test -match "OK") {
         $Connected = $true
         Write-Host "[OK] Conexao SSH estabelecida com sucesso!" -ForegroundColor Green
@@ -88,11 +98,11 @@ $Cmd2 = "if [ -d /opt/LinkDesk ]; then cd /opt/LinkDesk && sudo git pull; else s
 $Cmd3 = "cd /opt/LinkDesk/server && sudo bash setup.sh $Ip"
 $FullRemoteCmd = "$Cmd1 && $Cmd2 && $Cmd3"
 
-ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$User@$Ip" $FullRemoteCmd
+& ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$User@$Ip" $FullRemoteCmd
 
 # 5. Capturar a Chave Publica do Servidor
 Write-Host "-> Obtendo chave criptografica do servidor..." -ForegroundColor Yellow
-$PubKey = ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$User@$Ip" "sudo cat /opt/LinkDesk/server/data/id_ed25519.pub 2>/dev/null"
+$PubKey = & ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$User@$Ip" "sudo cat /opt/LinkDesk/server/data/id_ed25519.pub 2>/dev/null"
 
 if ($PubKey -and $PubKey.Trim().Length -gt 10) {
     $PubKey = $PubKey.Trim()
