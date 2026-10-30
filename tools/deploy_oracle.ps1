@@ -64,44 +64,51 @@ try {
     Write-Host "[AVISO] Nao foi possivel redefinir permissoes via icacls. Prosseguindo..." -ForegroundColor Yellow
 }
 
-# 3. Testar conectividade SSH com diagnostico em tempo real
+# 3. Testar conectividade SSH com suporte a RSA legado do Ubuntu 24.04
 Write-Host "-> Conectando a instancia Oracle Cloud ($Ip)..." -ForegroundColor Yellow
-$MaxRetries = 10
+$MaxRetries = 5
 $Connected = $false
 
+# Parametros SSH incluindo compatibilidade com chaves RSA no Ubuntu 22.04 / 24.04
 $SshArgs = @(
     "-i", "$ResolvedKey",
     "-o", "BatchMode=yes",
     "-o", "StrictHostKeyChecking=no",
     "-o", "UserKnownHostsFile=/dev/null",
-    "-o", "ConnectTimeout=6"
+    "-o", "PubkeyAcceptedKeyTypes=+ssh-rsa",
+    "-o", "PubkeyAcceptedAlgorithms=+ssh-rsa",
+    "-o", "HostKeyAlgorithms=+ssh-rsa",
+    "-o", "ConnectTimeout=8"
 )
 
 for ($i = 1; $i -le $MaxRetries; $i++) {
-    $rawOut = & ssh $SshArgs "$User@$Ip" "echo OK" 2>&1
+    $rawOut = & ssh $SshArgs "$User@$Ip" "echo LINKDESK_SSH_OK" 2>&1
     $outputStr = ($rawOut | Out-String).Trim()
 
-    if ($outputStr -match "OK") {
+    if ($LASTEXITCODE -eq 0 -and $outputStr -match "LINKDESK_SSH_OK") {
         $Connected = $true
         Write-Host "[OK] Conexao SSH estabelecida com sucesso!" -ForegroundColor Green
         break
     }
     
-    # Filtra avisos conhecidos do known_hosts para exibir apenas o motivo real
+    # Filtra avisos do known_hosts para exibir apenas o motivo real
     $filteredMsg = ($outputStr -split "`r?`n" | Where-Object { $_ -notmatch "Permanently added" -and $_.Trim() -ne "" }) -join " "
     if (-not $filteredMsg) { $filteredMsg = "Aguardando resposta do servidor..." }
     
     Write-Host "  Tentativa $i/${MaxRetries} - $filteredMsg" -ForegroundColor DarkGray
-    Start-Sleep -Seconds 4
+    Start-Sleep -Seconds 3
 }
 
 if (-not $Connected) {
     Write-Host ""
-    Write-Host "[ERRO] Nao foi possivel autenticar via SSH em $User@$Ip apos $MaxRetries tentativas." -ForegroundColor Red
-    Write-Host "Verificacoes importantes:" -ForegroundColor Yellow
-    Write-Host " 1. A instancia esta como 'Executando' na Oracle Cloud?" -ForegroundColor Yellow
-    Write-Host " 2. A porta 22 (SSH) esta liberada nas Regras de Entrada da Security List da VCN?" -ForegroundColor Yellow
-    Write-Host " 3. Se aparecer 'Permission denied (publickey)', a chave privada nao corresponde a cadastrada na VM." -ForegroundColor Yellow
+    Write-Host "[ERRO] Nao foi possivel autenticar via SSH em $User@$Ip." -ForegroundColor Red
+    Write-Host "Diagnostico:" -ForegroundColor Yellow
+    Write-Host " O servidor rejeitou a chave com: $filteredMsg" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Possiveis causas:" -ForegroundColor Yellow
+    Write-Host " 1. A chave 'Privada.ppk' pode nao pertencer a esta VM especifica da Oracle." -ForegroundColor White
+    Write-Host " 2. Caso nao encontre a chave correspondente, a solucao mais rapida e criar uma nova" -ForegroundColor White
+    Write-Host "    instancia de VM na Oracle (leva 1 min) e salvar o novo arquivo .key gerado." -ForegroundColor White
     exit 1
 }
 
@@ -112,11 +119,11 @@ $Cmd2 = "if [ -d /opt/LinkDesk ]; then cd /opt/LinkDesk && sudo git pull; else s
 $Cmd3 = "cd /opt/LinkDesk/server && sudo bash setup.sh $Ip"
 $FullRemoteCmd = "$Cmd1 && $Cmd2 && $Cmd3"
 
-& ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$User@$Ip" $FullRemoteCmd
+& ssh $SshArgs "$User@$Ip" $FullRemoteCmd
 
 # 5. Capturar a Chave Publica do Servidor
 Write-Host "-> Obtendo chave criptografica do servidor..." -ForegroundColor Yellow
-$PubKey = & ssh -i "$ResolvedKey" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$User@$Ip" "sudo cat /opt/LinkDesk/server/data/id_ed25519.pub 2>/dev/null"
+$PubKey = & ssh $SshArgs "$User@$Ip" "sudo cat /opt/LinkDesk/server/data/id_ed25519.pub 2>/dev/null"
 
 if ($PubKey -and $PubKey.Trim().Length -gt 10) {
     $PubKey = $PubKey.Trim()
