@@ -27,8 +27,8 @@ O projeto nasceu com uma proposta clara: eliminar os gargalos e as complexidades
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        INFRAESTRUTURA LINKDESK                        │
 │                 Oracle Cloud Always Free (São Paulo)                   │
-│         IP: 163.176.175.48  •  Google BBR Habilitado (Zero Lag)        │
-│          hbbs (Portas 21115-21116)  │  hbbr (Portas 21117, 21119)      │
+│          Google BBR Habilitado (Zero Lag & Máxima Fluidez)             │
+│          hbbs (Rendezvous / STUN)   │   hbbr (Relay Criptografado)     │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Criptografia E2EE (X25519)
              ┌──────────────────────┴──────────────────────┐
@@ -70,7 +70,7 @@ O projeto nasceu com uma proposta clara: eliminar os gargalos e as complexidades
 * **Runner Nativo:** C++ Windows Runner integrado com `flutter_rust_bridge` via Foreign Function Interface (FFI).
 * **Design System:** Material 3 Corporativo com paleta Azul Safira (#1D4ED8 / #0E1E4C), badges de status em tempo real e layout responsivo com visualização dual (SOS vs. Operador).
 
-### ☁️ Infraestrutura & Rede (Servidor em Produção)
+### ☁️ Infraestrutura & Rede (Servidor Privado)
 * **Hospedagem:** Oracle Cloud Infrastructure (OCI Always Free), Região Brasil East (São Paulo).
 * **Kernel Tuning:** Controle de congestionamento **Google BBR** (`net.ipv4.tcp_congestion_control = bbr`) com buffers TCP/UDP de 16 MB para eliminar bufferbloat e latência.
 * **Orquestração:** Docker & Docker Compose com reinicialização resiliente (`restart: unless-stopped`).
@@ -79,36 +79,15 @@ O projeto nasceu com uma proposta clara: eliminar os gargalos e as complexidades
 
 ---
 
-## 🌐 Servidor em Produção (Oracle Cloud)
-
-O servidor de infraestrutura do LinkDesk já se encontra ativo e operacional:
-
-| Serviço | Parâmetro de Conexão |
-| :--- | :--- |
-| **Host / Servidor ID** | `163.176.175.48` |
-| **Servidor Relay** | `163.176.175.48` |
-| **Chave Pública (Key)** | `J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI=` |
-| **Portas Utilizadas** | TCP `21115-21119` e UDP `21116` |
-| **Status Atual** | 🟢 **Online & Operacional** (Latência ~5-15ms no Brasil) |
-
----
-
 ## 📦 Como Usar o LinkDesk
 
-### Método 1: Executável Portátil Pré-Configurado (Recomendado para Clientes)
-Na pasta [`release/`](release/), disponibilizamos os executáveis prontos para uso:
-* **`LinkDesk-host=163.176.175.48,key=J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI=.exe`**:
-  O usuário apenas dá duplo clique. O próprio executável faz a leitura das credenciais pelo nome e conecta instantaneamente ao seu servidor da Oracle Cloud com status 🟢 **Pronto**.
-* **`LinkDesk-SOS.exe`**: Versão portátil limpa com a identidade visual LinkDesk.
-
-### Método 2: Conectar qualquer cliente oficial ao seu Servidor Privado
+### Configuração de Clientes Manuais
 1. Abra o aplicativo na sua máquina ou celular;
 2. Vá em **Configurações** ➔ **Rede** ➔ **Desbloquear configurações de rede**;
-3. Preencha:
-   * **Servidor ID:** `163.176.175.48`
-   * **Servidor Relay:** `163.176.175.48`
-   * **Key:** `J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI=`
+3. Preencha com o IP/Domínio do seu servidor privado e a sua chave criptográfica;
 4. Clique em **OK**. O status mudará imediatamente para 🟢 **Pronto (Ready)**.
+
+> *Nota de Segurança: As credenciais privadas de conexão da sua infraestrutura ficam armazenadas no arquivo local `SERVER_CREDENTIALS.local.md` (ignorado pelo Git).*
 
 ---
 
@@ -124,7 +103,7 @@ O repositório inclui a pipeline [`.github/workflows/build-linkdesk.yml`](.githu
 Para compilar localmente na sua máquina:
 ```powershell
 # 1. Configurar parâmetros do servidor
-python tools/configure_linkdesk.py "LinkDesk" "163.176.175.48" "J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI="
+python tools/configure_linkdesk.py "LinkDesk" "SEU_IP_OU_DOMINIO" "SUA_CHAVE_PUBLICA"
 
 # 2. Executar compilação do executável
 powershell -ExecutionPolicy Bypass -File build/build-windows.ps1

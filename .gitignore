@@ -30,3 +30,6 @@ release/
 *.bak
 Thumbs.db
 [Dd]esktop.ini
+ 
+*.local.md
+SERVER_CREDENTIALS.local.md
