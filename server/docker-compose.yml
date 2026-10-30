@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Servidor de Sinalização e Registro de IDs (Rendezvous / STUN)
+  hbbs:
+    image: rustdesk/rustdesk-server:latest
+    container_name: linkdesk-hbbs
+    restart: always
+    command: hbbs -r relay.linkdesk.local:21117 -k _
+    environment:
+      - ALWAYS_USE_RELAY=N
+    volumes:
+      - ./data:/root
+    ports:
+      - "21115:21115/tcp" # NAT type test
+      - "21116:21116/tcp" # TCP hole punching / session
+      - "21116:21116/udp" # Heartbeat / ID registration
+      - "21118:21118/tcp" # WebSocket rendezvous (para cliente Web / HTML5)
+    networks:
+      - linkdesk-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Servidor de Relay de Vídeo e Comandos (para quando P2P falhar)
+  hbbr:
+    image: rustdesk/rustdesk-server:latest
+    container_name: linkdesk-hbbr
+    restart: always
+    command: hbbr -k _
+    volumes:
+      - ./data:/root
+    ports:
+      - "21117:21117/tcp" # Relay principal
+      - "21119:21119/tcp" # WebSocket relay (para cliente Web / HTML5)
+    networks:
+      - linkdesk-net
+    depends_on:
+      - hbbs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+networks:
+  linkdesk-net:
+    driver: bridge
