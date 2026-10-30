@@ -40,6 +40,15 @@ if (Test-Path $VcpkgDir) {
     [Environment]::SetEnvironmentVariable("VCPKG_ROOT", $VcpkgDir, "User")
 }
 
+$LlvmBin = "C:\Program Files\LLVM\bin"
+if (Test-Path "$LlvmBin\libclang.dll") {
+    $env:LIBCLANG_PATH = $LlvmBin
+    if ($env:Path -notlike "*$LlvmBin*") {
+        $env:Path = "$LlvmBin;" + $env:Path
+    }
+    [Environment]::SetEnvironmentVariable("LIBCLANG_PATH", $LlvmBin, "User")
+}
+
 # 2. Verificar Pre-requisitos
 Write-Host "Verificando ferramentas de desenvolvimento..." -ForegroundColor Yellow
 
