@@ -113,8 +113,8 @@ const CHARS: &[char] = &[
     'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
 
-pub const RENDEZVOUS_SERVERS: &[&str] = &["connect.linkdesk.io"];
-pub const RS_PUB_KEY: &str = "k15lJvG9IeFvvkXvdXgo22zOpKJwFIpGZ8CtKmqHdV4=";
+pub const RENDEZVOUS_SERVERS: &[&str] = &["163.176.175.48"];
+pub const RS_PUB_KEY: &str = "J7a7cMgLWUrICwjjblTo3F8lpPeagFJ6wH6xmCkyTqI=";
 
 pub const RENDEZVOUS_PORT: i32 = 21116;
 pub const RELAY_PORT: i32 = 21117;

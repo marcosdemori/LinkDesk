@@ -24,7 +24,10 @@ Write-Host "Chave Pub  : $(if ($ServerPubKey) { $ServerPubKey } else { '(Padrao 
 Write-Host "----------------------------------------------------------"
 
 # 1. Carregar caminhos padrao no PATH da sessao atual
-$CargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+$CargoBin = "C:\Users\Marcos De Mori\.cargo\bin"
+if (-not (Test-Path $CargoBin)) {
+    $CargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+}
 if ((Test-Path $CargoBin) -and ($env:Path -notlike "*$CargoBin*")) {
     $env:Path = "$CargoBin;" + $env:Path
 }
