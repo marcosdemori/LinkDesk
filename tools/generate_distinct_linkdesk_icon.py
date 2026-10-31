@@ -4,7 +4,6 @@ from PIL import Image, ImageDraw, ImageFont
 def generate_linkdesk_assets():
     size = 512
     # 1. Base Squircle com Gradiente Azul Real / Safira Escuro para Elétrico
-    # (Não é o azul chapado do RustDesk, é um gradiente premium de alta tecnologia)
     bg = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     bdraw = ImageDraw.Draw(bg)
     for y in range(size):
@@ -22,7 +21,6 @@ def generate_linkdesk_assets():
     bg.putalpha(mask)
 
     # 2. Emblema Exclusivo LinkDesk: Elo de Conexão Duplo (Interlocking Link Nodes)
-    # Totalmente diferente das setas circulares do RustDesk!
     # Dois anéis arredondados grossos entrelaçados (um Branco Puro, um Ciano Neon)
     cx, cy = size // 2, size // 2
     emblem = Image.new('RGBA', (size, size), (0, 0, 0, 0))

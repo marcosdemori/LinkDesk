@@ -21,7 +21,7 @@
 
 O **LinkDesk** é uma plataforma de acesso e suporte remoto projetada para **TI corporativa, suporte técnico a clientes e operações SaaS privadas**. 
 
-O projeto nasceu com uma proposta clara: eliminar os gargalos e as complexidades de configuração do RustDesk tradicional, incorporando a experiência de usuário minimalista e a transparência de rede do HopToDesk, com infraestrutura de servidores 100% própria e privada.
+O projeto nasceu com uma proposta clara: acesso remoto sem gargalos nem configuração para o cliente final, com experiência de usuário minimalista e infraestrutura de servidores 100% própria e privada.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -44,15 +44,15 @@ O projeto nasceu com uma proposta clara: eliminar os gargalos e as complexidades
 
 ---
 
-## ⚡ O Melhor dos 2 Mundos
+## ⚡ Diferenciais
 
-| Recurso / Aspecto | RustDesk Oficial | HopToDesk | **LinkDesk (Híbrido)** |
-| :--- | :--- | :--- | :--- |
-| **Engine & Performance** | Core Rust com aceleração NVENC/AMF/QSV | P2P direto com menor consumo | **Core Rust com Tuning BBR e P2P nativo desbloqueado** |
-| **Interface do Cliente** | Banners de aviso, menus e opções técnicas | Janela compacta com ID/Senha | **Modo SOS / Quick Support limpo + Alternador Técnico** |
-| **Configuração de Servidor** | Exige digitar IP e colar Chave Pública | Rede pública compartilhada | **100% Embutido de Fábrica**: Zero configuração para o cliente |
-| **Distribuição** | Instaladores tradicionais | Executável único portátil | **Binário Autônomo Portable + Suporte a Serviço permanente** |
-| **Privacidade** | Servidores públicos na China/EUA | Servidores de terceiros | **Servidor Próprio e Privado**: Nenhum dado trafega por fora |
+| Recurso / Aspecto | **LinkDesk** |
+| :--- | :--- |
+| **Engine & Performance** | **Core Rust com Tuning BBR e P2P nativo desbloqueado** |
+| **Interface do Cliente** | **Modo SOS / Quick Support limpo + Alternador Técnico** |
+| **Configuração de Servidor** | **100% Embutido de Fábrica**: Zero configuração para o cliente |
+| **Distribuição** | **Binário Autônomo Portable + Suporte a Serviço permanente** |
+| **Privacidade** | **Servidor Próprio e Privado**: Nenhum dado trafega por fora |
 
 ---
 
@@ -116,6 +116,12 @@ powershell -ExecutionPolicy Bypass -File build/build-windows.ps1
 1. **Zero Coleta de Telemetria:** Diferente de soluções comerciais de mercado, o LinkDesk não coleta identificadores pessoais, IPs ou logs em servidores externos.
 2. **Criptografia Ponta a Ponta:** Toda a transmissão de áudio, vídeo, teclado e mouse é criptografada e autenticada via AEAD ChaCha20-Poly1305.
 3. **Controle Granular na Sessão:** O cliente que recebe o suporte pode habilitar/desabilitar permissões a qualquer momento na interface (desativar mouse, bloquear transferência de arquivos ou pausar vídeo).
+
+---
+
+## 📄 Licença
+
+O LinkDesk é distribuído sob a licença **GNU AGPL-3.0** (veja [`client/LICENCE`](client/LICENCE)). Ele é uma obra derivada de software livre AGPL-3.0; os avisos de copyright originais são mantidos nos arquivos-fonte, como a licença exige, e o código-fonte completo está disponível neste repositório.
 
 ---
 

@@ -50,7 +50,7 @@ $SourceCandidate = @(
     $CleanPath,
     (Join-Path $TargetDir "LinkDesk\LinkDesk.exe"),
     (Join-Path $RepoRoot "client\rustdesk_portable.exe"),
-    (Join-Path $RepoRoot "client\flutter\build\windows\x64\runner\Release\rustdesk.exe")
+    (Join-Path $RepoRoot "client\flutter\build\windows\x64\runner\Release\LinkDesk.exe")
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if (-not $SourceCandidate) {

@@ -722,3 +722,9 @@ extension WindowsTargetExt on int {
 }
 
 const kCheckSoftwareUpdateFinish = 'check_software_update_finish';
+
+// LinkDesk has no website yet; the GitHub repository is the public home
+// (releases and the AGPL source/license).
+const kLinkDeskRepoUrl = 'https://github.com/marcosdemori/LinkDesk';
+const kLinkDeskReleasesUrl = '$kLinkDeskRepoUrl/releases';
+const kLinkDeskLicenseUrl = '$kLinkDeskRepoUrl/blob/main/client/LICENCE';

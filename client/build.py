@@ -982,7 +982,7 @@ def build_flutter_windows(version, features, skip_portable_pack):
     os.chdir('libs/portable')
     system2(f'"{sys.executable}" -m pip install -r requirements.txt')
     system2(
-        f'"{sys.executable}" ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/rustdesk.exe')
+        f'"{sys.executable}" ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/LinkDesk.exe')
     os.chdir('../..')
     packer_exe = './target/release/rustdesk-portable-packer.exe'
     if not os.path.exists(packer_exe) and os.path.exists('./libs/portable/target/release/rustdesk-portable-packer.exe'):

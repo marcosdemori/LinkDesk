@@ -21,7 +21,7 @@ Seu servidor local de sinalização e relay já está **rodando em background** 
   * `21118` (TCP) - WebSocket de Sinalização
 
 ### Como Testar o Servidor Local Agora Mesmo:
-Você já tem o aplicativo cliente do RustDesk instalado na máquina. Para testar sua rede privada local:
+Com o aplicativo LinkDesk instalado na máquina, para testar sua rede privada local:
 1. Abra o aplicativo cliente.
 2. Clique no ícone de menu (3 pontinhos ou engrenagem) ao lado do seu ID > **Rede (Network)** > **Desbloquear configurações de rede**.
 3. Preencha os campos:
@@ -91,12 +91,10 @@ ssh -i "C:\caminho\para\sua-chave.key" ubuntu@IP_PUBLICO_DA_ORACLE
 Dentro do terminal do servidor Ubuntu, execute:
 
 ```bash
-# 1. Criar pasta e baixar o setup automatizado
+# 1. Criar a pasta e copiar para ela o conteúdo da pasta server/ deste repositório
 mkdir -p /opt/linkdesk && cd /opt/linkdesk
-curl -fsSL https://raw.githubusercontent.com/rustdesk/rustdesk-server/master/docker-compose.yml -o docker-compose.yml 2>/dev/null || true
 
-# 2. Se preferir enviar os arquivos deste repositório, basta copiar a pasta server/ para o VPS
-# e executar:
+# 2. Executar o setup automatizado
 chmod +x setup.sh
 sudo ./setup.sh
 ```

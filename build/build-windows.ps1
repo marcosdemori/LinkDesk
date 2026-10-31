@@ -217,6 +217,12 @@ Set-Location $ClientDir
 # build.py renomeia rustdesk_portable.exe -> rustdesk-<versao>-install.exe e falha se o do build anterior existir.
 Remove-Item (Join-Path $ClientDir "rustdesk_portable.exe"), (Join-Path $ClientDir "rustdesk-*-install.exe") -Force -ErrorAction SilentlyContinue
 
+# Nomes de antes do rebrand: a pasta de build do Flutter nao e limpa entre builds e
+# o empacotador inclui tudo o que estiver nela.
+$LegacyBinaries = @("rustdesk.exe", "librustdesk.dll", "RuntimeBroker_rustdesk.exe")
+$FlutterReleaseDir = Join-Path $ClientDir "flutter\build\windows\x64\runner\Release"
+Remove-Item ($LegacyBinaries | ForEach-Object { Join-Path $FlutterReleaseDir $_ }) -Force -ErrorAction SilentlyContinue
+
 if ($SkipCargo) {
     python build.py --flutter --skip-cargo
 } else {
@@ -255,10 +261,10 @@ if ($FoundInstaller) {
 # Copiar Pasta Completa do Aplicativo
 $FlutterRelease = Join-Path $ClientDir "flutter\build\windows\x64\runner\Release"
 if (Test-Path $FlutterRelease) {
+    Remove-Item ($LegacyBinaries | ForEach-Object { Join-Path $AppFolder $_ }) -Force -ErrorAction SilentlyContinue
     Copy-Item "$FlutterRelease\*" $AppFolder -Recurse -Force
-    if (Test-Path "$AppFolder\rustdesk.exe") {
-        Copy-Item "$AppFolder\rustdesk.exe" "$AppFolder\$AppName.exe" -Force
-        Remove-Item "$AppFolder\rustdesk.exe" -Force
+    if ($AppName -ne "LinkDesk") {
+        Move-Item "$AppFolder\LinkDesk.exe" "$AppFolder\$AppName.exe" -Force
     }
     # Caso o instalador nao tenha sido gerado, garantir o executavel na raiz do release
     if (-not $FoundInstaller) {
