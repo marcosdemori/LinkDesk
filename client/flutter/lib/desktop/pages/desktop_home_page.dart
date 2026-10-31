@@ -65,16 +65,274 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         if (!isIncomingOnly && !_isTechnicianMode.value) {
           return buildSosView(context);
         }
-        return Column(
+        if (isIncomingOnly) {
+          return Column(
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [buildLeftPane(context)],
+                ),
+              ),
+            ],
+          );
+        }
+        return Row(
           children: [
-            if (!isIncomingOnly) _buildTechnicianHeader(context),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            _buildRail(context),
+            Expanded(child: _buildTechnicianBody(context)),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildRail(BuildContext context) {
+    final muted = Theme.of(context).hintColor;
+    Widget item(IconData icon, String tip, VoidCallback? onTap,
+        {bool active = false}) {
+      return Tooltip(
+        message: tip,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 3,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: active ? MyTheme.accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: active
+                      ? MyTheme.accent.withOpacity(0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon,
+                    size: 21, color: active ? MyTheme.accent : muted),
+              ),
+              const SizedBox(width: 11),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 64,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.background,
+        border: Border(
+            right: BorderSide(color: Theme.of(context).dividerColor)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        children: [
+          item(Icons.home_outlined, "Início", null, active: true),
+          const Spacer(),
+          item(Icons.shield_outlined, "Modo Suporte (SOS)",
+              () => _isTechnicianMode.value = false),
+          const SizedBox(height: 6),
+          item(Icons.settings_outlined, translate('Settings'),
+              DesktopTabPage.onAddSetting),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTechnicianBody(BuildContext context) {
+    final isOutgoingOnly = bind.isOutgoingOnly();
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? "Bom dia"
+        : hour < 18
+            ? "Boa tarde"
+            : "Boa noite";
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 26, 32, 0),
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(greeting,
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3)),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Compartilhe seu ID para receber suporte ou conecte-se a outro dispositivo.",
+                      style: TextStyle(
+                          fontSize: 13, color: Theme.of(context).hintColor),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                _buildPill("Modo técnico", MyTheme.accent),
+              ],
+            ),
+          ),
+          if (!isOutgoingOnly) buildPresetPasswordWarning(),
+          Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
+          Expanded(
+            child: ConnectionPage(
+                deviceCard: isOutgoingOnly ? null : _buildDeviceCard(context)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPill(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(text,
+              style: TextStyle(
+                  color: color, fontSize: 11.5, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceCard(BuildContext context) {
+    final muted = Theme.of(context).hintColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final model = gFFI.serverModel;
+    Widget action(IconData icon, String tip, VoidCallback onTap) => Tooltip(
+          message: tip,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onTap,
+            child: SizedBox(
+                width: 32, height: 32, child: Icon(icon, size: 17, color: muted)),
+          ),
+        );
+
+    return ChangeNotifierProvider.value(
+      value: model,
+      child: Consumer<ServerModel>(builder: (context, model, child) {
+        final showOneTime = model.approveMode != 'click' &&
+            model.verificationMethod != kUsePermanentPassword;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                _cardLabel("Este dispositivo", muted),
+                const Spacer(),
+                Obx(() {
+                  final status = stateGlobal.svcStatus.value;
+                  return status == SvcStatus.ready
+                      ? _buildPill("Pronto para conexões", MyTheme.cmIdColor)
+                      : status == SvcStatus.connecting
+                          ? _buildPill(translate("connecting_status"), kColorWarn)
+                          : _buildPill(
+                              translate("not_ready_status"), Colors.redAccent);
+                }),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: model.serverId,
+              builder: (context, value, _) => Row(
                 children: [
-                  buildLeftPane(context),
-                  if (!isIncomingOnly) const VerticalDivider(width: 1),
-                  if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: SelectableText(
+                        value.text.isNotEmpty ? value.text : "--- --- ---",
+                        style: const TextStyle(
+                          fontFamilyFallback: MyTheme.monoFonts,
+                          fontSize: 38,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 3,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  action(Icons.copy_rounded, translate("Copy"), () {
+                    if (value.text.isNotEmpty) {
+                      Clipboard.setData(ClipboardData(text: value.text));
+                      showToast(translate("Copied"));
+                    }
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF181B21) : MyTheme.grayBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Row(
+                children: [
+                  Text(translate("One-time Password"),
+                      style: TextStyle(fontSize: 12, color: muted)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: model.serverPasswd,
+                      builder: (context, value, _) => SelectableText(
+                        value.text.isNotEmpty ? value.text : "••••••",
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamilyFallback: MyTheme.monoFonts,
+                          fontSize: 16,
+                          letterSpacing: 2,
+                          color: isDark ? MyTheme.accent : MyTheme.idColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (showOneTime)
+                    action(Icons.refresh_rounded, translate('Refresh Password'),
+                        () => bind.mainUpdateTemporaryPassword()),
+                  if (showOneTime)
+                    action(Icons.copy_rounded, translate("Copy"), () {
+                      if (model.serverPasswd.text.isNotEmpty) {
+                        Clipboard.setData(
+                            ClipboardData(text: model.serverPasswd.text));
+                        showToast(translate("Copied"));
+                      }
+                    }),
+                  if (!bind.isDisableSettings())
+                    action(Icons.edit_outlined, translate('Change Password'),
+                        () => DesktopSettingPage.switch2page(
+                            SettingsTabKey.safety)),
                 ],
               ),
             ),
@@ -84,55 +342,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  Widget _buildTechnicianHeader(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderCol = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.background,
-        border: Border(bottom: BorderSide(color: borderCol, width: 1)),
-      ),
-      child: Row(
-        children: [
-          loadLogo(),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: MyTheme.accent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              "MODO TÉCNICO",
-              style: TextStyle(
-                color: MyTheme.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
-              ),
-            ),
-          ),
-          const Spacer(),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.shield_rounded, size: 16),
-            label: const Text("Modo Suporte (SOS)"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MyTheme.button,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            ),
-            onPressed: () {
-              _isTechnicianMode.value = false;
-            },
-          ),
-          const SizedBox(width: 8),
-          buildPopupMenu(context),
-        ],
-      ),
-    );
-  }
+  Widget _cardLabel(String text, Color color) => Text(
+        text.toUpperCase(),
+        style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1.2,
+            color: color),
+      );
 
   Widget buildSosView(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -140,10 +357,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       child: Consumer<ServerModel>(
         builder: (context, model, child) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-          final borderCol = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-          final textMain = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
-          final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+          final cardBg = isDark ? MyTheme.darkCard : Colors.white;
+          final borderCol = isDark ? MyTheme.darkLine : MyTheme.lightLine;
+          final textMain = isDark ? const Color(0xFFEEF1F5) : MyTheme.dark;
+          final textMuted = isDark ? MyTheme.darkGray : const Color(0xFF6B7280);
 
           return Container(
             color: Theme.of(context).scaffoldBackgroundColor,
@@ -164,9 +381,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                         icon: const Icon(Icons.support_agent_rounded, size: 18),
                         label: const Text("Modo Técnico"),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: MyTheme.accent,
+                          foregroundColor: isDark ? MyTheme.accent : MyTheme.button,
                           side: BorderSide(color: MyTheme.accent.withOpacity(0.5)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         ),
                         onPressed: () {
@@ -283,9 +499,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                                     : "--- --- ---",
                                                 style: TextStyle(
                                                   color: textMain,
-                                                  fontSize: 28,
-                                                  fontWeight: FontWeight.w800,
-                                                  letterSpacing: 2,
+                                                  fontFamilyFallback: MyTheme.monoFonts,
+                                                  fontSize: 30,
+                                                  fontWeight: FontWeight.w500,
+                                                  letterSpacing: 3,
                                                 ),
                                               ),
                                             ],
@@ -295,10 +512,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                           icon: const Icon(Icons.copy_rounded, size: 16),
                                           label: const Text("Copiar ID"),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: MyTheme.button,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                                           ),
                                           onPressed: () {
                                             if (model.serverId.text.isNotEmpty) {
@@ -316,7 +530,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                      color: isDark ? const Color(0xFF181B21) : MyTheme.grayBg,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(color: borderCol, width: 1),
                                     ),
@@ -347,10 +561,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                                     ? model.serverPasswd.text
                                                     : "••••••",
                                                 style: TextStyle(
-                                                  color: textMain,
+                                                  color: isDark ? MyTheme.accent : MyTheme.idColor,
+                                                  fontFamilyFallback: MyTheme.monoFonts,
                                                   fontSize: 22,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 1.5,
+                                                  fontWeight: FontWeight.w500,
+                                                  letterSpacing: 2,
                                                 ),
                                               ),
                                             ],
@@ -542,13 +757,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           ],
         ),
       ),
-    );
-  }
-
-  buildRightPane(BuildContext context) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: ConnectionPage(),
     );
   }
 

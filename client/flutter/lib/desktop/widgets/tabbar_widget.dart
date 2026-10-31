@@ -1466,28 +1466,28 @@ class TabbarTheme extends ThemeExtension<TabbarTheme> {
       required this.selectedTabBackgroundColor});
 
   static const light = TabbarTheme(
-      selectedTabIconColor: MyTheme.accent,
-      unSelectedTabIconColor: Color.fromARGB(255, 162, 203, 241),
-      selectedTextColor: Colors.black,
-      unSelectedTextColor: Color.fromARGB(255, 112, 112, 112),
-      selectedIconColor: Color.fromARGB(255, 26, 26, 26),
-      unSelectedIconColor: Color.fromARGB(255, 96, 96, 96),
-      dividerColor: Color.fromARGB(255, 238, 238, 238),
+      selectedTabIconColor: MyTheme.button,
+      unSelectedTabIconColor: Color(0xFF8B93A1),
+      selectedTextColor: Color(0xFF121418),
+      unSelectedTextColor: Color(0xFF6B7280),
+      selectedIconColor: Color(0xFF121418),
+      unSelectedIconColor: Color(0xFF6B7280),
+      dividerColor: MyTheme.lightLine,
       hoverColor: Colors.white54,
       closeHoverColor: Colors.white,
-      selectedTabBackgroundColor: Colors.white54);
+      selectedTabBackgroundColor: Colors.white);
 
   static const dark = TabbarTheme(
       selectedTabIconColor: MyTheme.accent,
-      unSelectedTabIconColor: Color.fromARGB(255, 30, 65, 98),
-      selectedTextColor: Colors.white,
-      unSelectedTextColor: Color.fromARGB(255, 192, 192, 192),
-      selectedIconColor: Color.fromARGB(255, 192, 192, 192),
-      unSelectedIconColor: Color.fromARGB(255, 255, 255, 255),
-      dividerColor: Color.fromARGB(255, 64, 64, 64),
-      hoverColor: Colors.black26,
+      unSelectedTabIconColor: Color(0xFF5C6370),
+      selectedTextColor: Color(0xFFEEF1F5),
+      unSelectedTextColor: Color(0xFF8B93A1),
+      selectedIconColor: Color(0xFFEEF1F5),
+      unSelectedIconColor: Color(0xFF8B93A1),
+      dividerColor: MyTheme.darkLine,
+      hoverColor: MyTheme.darkCard,
       closeHoverColor: Colors.black,
-      selectedTabBackgroundColor: Colors.black26);
+      selectedTabBackgroundColor: MyTheme.darkCard);
 
   @override
   ThemeExtension<TabbarTheme> copyWith({

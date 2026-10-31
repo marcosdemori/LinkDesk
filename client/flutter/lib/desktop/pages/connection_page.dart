@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_hbb/common/widgets/connection_page_title.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/widgets/popup_menu.dart';
 import 'package:flutter_hbb/models/state_model.dart';
@@ -160,7 +159,10 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
 
 /// Connection page for connecting to a remote peer.
 class ConnectionPage extends StatefulWidget {
-  const ConnectionPage({Key? key}) : super(key: key);
+  const ConnectionPage({Key? key, this.deviceCard}) : super(key: key);
+
+  /// Content of the "this device" card shown beside the connect card.
+  final Widget? deviceCard;
 
   @override
   State<ConnectionPage> createState() => _ConnectionPageState();
@@ -275,24 +277,45 @@ class _ConnectionPageState extends State<ConnectionPage>
   @override
   Widget build(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
+    final deviceCard = widget.deviceCard;
     return Column(
       children: [
         Expanded(
             child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Flexible(child: _buildRemoteIDTextField(context)),
-              ],
-            ).marginOnly(top: 22),
-            SizedBox(height: 12),
-            Divider().paddingOnly(right: 12),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (deviceCard != null)
+                    Expanded(child: _buildCard(context, deviceCard)),
+                  if (deviceCard != null) const SizedBox(width: 18),
+                  Expanded(
+                      child: _buildCard(
+                          context, _buildRemoteIDTextField(context))),
+                ],
+              ),
+            ).marginOnly(top: 20),
+            const SizedBox(height: 22),
             Expanded(child: PeerTabPage()),
           ],
-        ).paddingOnly(left: 12.0)),
+        ).paddingSymmetric(horizontal: 32)),
         if (!isOutgoingOnly) const Divider(height: 1),
         if (!isOutgoingOnly) OnlineStatusWidget()
       ],
+    );
+  }
+
+  Widget _buildCard(BuildContext context, Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: child,
     );
   }
 
@@ -314,16 +337,37 @@ class _ConnectionPageState extends State<ConnectionPage>
   /// UI for the remote ID TextField.
   /// Search for a peer.
   Widget _buildRemoteIDTextField(BuildContext context) {
+    final muted = Theme.of(context).hintColor;
+    Widget quickButton(IconData icon, String label, VoidCallback onPressed) =>
+        OutlinedButton.icon(
+          icon: Icon(icon, size: 16),
+          label: Text(label),
+          style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12)),
+          onPressed: onPressed,
+        );
     var w = Container(
-      width: 320 + 20 * 2,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
-      decoration: BoxDecoration(
-          borderRadius: const BorderRadius.all(Radius.circular(13)),
-          border: Border.all(color: Theme.of(context).colorScheme.background)),
       child: Ink(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            getConnectionPageTitle(context, false).marginOnly(bottom: 15),
+            Text(
+              "ACESSO REMOTO",
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 1.2,
+                  color: muted),
+            ),
+            const SizedBox(height: 10),
+            const Text("Conectar a um dispositivo",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(
+              "Digite o ID ou o endereço do computador que você quer acessar.",
+              style: TextStyle(fontSize: 12.5, color: muted),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -391,21 +435,48 @@ class _ConnectionPageState extends State<ConnectionPage>
                           keyboardType: TextInputType.visiblePassword,
                           focusNode: fieldFocusNode,
                           style: const TextStyle(
-                            fontFamily: 'WorkSans',
-                            fontSize: 22,
+                            fontFamilyFallback: MyTheme.monoFonts,
+                            fontSize: 17,
+                            letterSpacing: 1.5,
                             height: 1.4,
                           ),
                           maxLines: 1,
-                          cursorColor:
-                              Theme.of(context).textTheme.titleLarge?.color,
+                          cursorColor: MyTheme.accent,
                           decoration: InputDecoration(
-                              filled: false,
                               counterText: '',
                               hintText: _idInputFocused.value
                                   ? null
                                   : translate('Enter Remote ID'),
+                              hintStyle: const TextStyle(
+                                  fontSize: 15, letterSpacing: 0),
+                              prefixIcon: Icon(Icons.search_rounded,
+                                  size: 19, color: muted),
+                              suffixIcon: Padding(
+                                padding: const EdgeInsets.all(5),
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.arrow_forward_rounded,
+                                      size: 17),
+                                  label: Text(translate("Connect")),
+                                  style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 18)),
+                                  onPressed: () => onConnect(),
+                                ),
+                              ),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                  borderSide: BorderSide(
+                                      color: Theme.of(context).dividerColor)),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                  borderSide: BorderSide(
+                                      color: Theme.of(context).dividerColor)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                  borderSide: const BorderSide(
+                                      color: MyTheme.accent, width: 1.5)),
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 15, vertical: 13)),
+                                  horizontal: 15, vertical: 15)),
                           controller: fieldTextEditingController,
                           inputFormatters: [IDTextInputFormatter()],
                           onChanged: (v) {
@@ -487,24 +558,24 @@ class _ConnectionPageState extends State<ConnectionPage>
               ],
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 13.0),
-              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                SizedBox(
-                  height: 28.0,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      onConnect();
-                    },
-                    child: Text(translate("Connect")),
-                  ),
-                ),
-                const SizedBox(width: 8),
+              padding: const EdgeInsets.only(top: 14.0),
+              child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                quickButton(Icons.folder_outlined, translate('Transfer file'),
+                    () => onConnect(isFileTransfer: true)),
+                quickButton(Icons.videocam_outlined, translate('View camera'),
+                    () => onConnect(isViewCamera: true)),
+                quickButton(Icons.terminal_rounded, translate('Terminal'),
+                    () => onConnect(isTerminal: true)),
                 Container(
-                  height: 28.0,
-                  width: 28.0,
+                  height: 40.0,
+                  width: 40.0,
                   decoration: BoxDecoration(
                     border: Border.all(color: Theme.of(context).dividerColor),
-                    borderRadius: BorderRadius.circular(8),
+                    shape: BoxShape.circle,
                   ),
                   child: Center(
                     child: StatefulBuilder(
@@ -591,7 +662,6 @@ class _ConnectionPageState extends State<ConnectionPage>
         ),
       ),
     );
-    return Container(
-        constraints: const BoxConstraints(maxWidth: 600), child: w);
+    return w;
   }
 }
