@@ -222,6 +222,12 @@ Remove-Item (Join-Path $ClientDir "rustdesk_portable.exe"), (Join-Path $ClientDi
 $LegacyBinaries = @("rustdesk.exe", "librustdesk.dll", "RuntimeBroker_rustdesk.exe")
 $FlutterReleaseDir = Join-Path $ClientDir "flutter\build\windows\x64\runner\Release"
 Remove-Item ($LegacyBinaries | ForEach-Object { Join-Path $FlutterReleaseDir $_ }) -Force -ErrorAction SilentlyContinue
+# O CMakeCache guarda CMAKE_INSTALL_PREFIX=$<TARGET_FILE_DIR:alvo>; se foi gerado com o
+# alvo antigo (rustdesk), a configuracao falha com "No target". Recria o cache nesse caso.
+$CMakeCache = Join-Path $ClientDir "flutter\build\windows\x64\CMakeCache.txt"
+if ((Test-Path $CMakeCache) -and -not (Select-String -Path $CMakeCache -SimpleMatch 'TARGET_FILE_DIR:LinkDesk' -Quiet)) {
+    Remove-Item (Join-Path $ClientDir "flutter\build\windows") -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 if ($SkipCargo) {
     python build.py --flutter --skip-cargo
