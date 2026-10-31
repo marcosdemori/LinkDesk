@@ -278,41 +278,56 @@ class _ConnectionPageState extends State<ConnectionPage>
   Widget build(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
     final deviceCard = widget.deviceCard;
-    return Column(
-      children: [
-        Expanded(
-            child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            IntrinsicHeight(
+    return LayoutBuilder(builder: (context, constraints) {
+      final isNarrow = constraints.maxWidth < 640;
+      final topSection = isNarrow
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (deviceCard != null) _buildCard(context, deviceCard),
+                if (deviceCard != null) const SizedBox(height: 10),
+                _buildCard(context, _buildRemoteIDTextField(context)),
+              ],
+            )
+          : IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (deviceCard != null)
                     Expanded(child: _buildCard(context, deviceCard)),
-                  if (deviceCard != null) const SizedBox(width: 18),
+                  if (deviceCard != null) const SizedBox(width: 14),
                   Expanded(
                       child: _buildCard(
                           context, _buildRemoteIDTextField(context))),
                 ],
               ),
-            ).marginOnly(top: 20),
-            const SizedBox(height: 22),
-            Expanded(child: PeerTabPage()),
-          ],
-        ).paddingSymmetric(horizontal: 32)),
-        if (!isOutgoingOnly) const Divider(height: 1),
-        if (!isOutgoingOnly) OnlineStatusWidget()
-      ],
-    );
+            );
+
+      return Column(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                topSection.marginOnly(top: 10),
+                const SizedBox(height: 12),
+                Expanded(child: PeerTabPage()),
+              ],
+            ).paddingSymmetric(horizontal: 24),
+          ),
+          if (!isOutgoingOnly) const Divider(height: 1),
+          if (!isOutgoingOnly) OnlineStatusWidget(),
+        ],
+      );
+    });
   }
 
   Widget _buildCard(BuildContext context, Widget child) {
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: child,
@@ -340,10 +355,10 @@ class _ConnectionPageState extends State<ConnectionPage>
     final muted = Theme.of(context).hintColor;
     Widget quickButton(IconData icon, String label, VoidCallback onPressed) =>
         OutlinedButton.icon(
-          icon: Icon(icon, size: 16),
-          label: Text(label),
+          icon: Icon(icon, size: 14),
+          label: Text(label, style: const TextStyle(fontSize: 12)),
           style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7)),
           onPressed: onPressed,
         );
     var w = Container(
@@ -359,15 +374,15 @@ class _ConnectionPageState extends State<ConnectionPage>
                   letterSpacing: 1.2,
                   color: muted),
             ),
-            const SizedBox(height: 10),
-            const Text("Conectar a um dispositivo",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
+            const Text("Conectar a um dispositivo",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
             Text(
               "Digite o ID ou o endereço do computador que você quer acessar.",
-              style: TextStyle(fontSize: 12.5, color: muted),
+              style: TextStyle(fontSize: 12, color: muted),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -476,7 +491,7 @@ class _ConnectionPageState extends State<ConnectionPage>
                                   borderSide: const BorderSide(
                                       color: MyTheme.accent, width: 1.5)),
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 15, vertical: 15)),
+                                  horizontal: 14, vertical: 10)),
                           controller: fieldTextEditingController,
                           inputFormatters: [IDTextInputFormatter()],
                           onChanged: (v) {

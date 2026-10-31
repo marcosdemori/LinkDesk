@@ -171,7 +171,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(32, 26, 32, 0),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
             child: Row(
               children: [
                 Column(
@@ -179,7 +179,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   children: [
                     Text(greeting,
                         style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.3)),
                     const SizedBox(height: 4),
@@ -336,16 +336,23 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                 const Spacer(),
                 Obx(() {
                   final status = stateGlobal.svcStatus.value;
-                  return status == SvcStatus.ready
-                      ? _buildPill("Pronto para conexões", MyTheme.cmIdColor)
+                  final (statusText, statusColor) = status == SvcStatus.ready
+                      ? ("Pronto", MyTheme.cmIdColor)
                       : status == SvcStatus.connecting
-                          ? _buildPill(translate("connecting_status"), kColorWarn)
-                          : _buildPill(
-                              translate("not_ready_status"), Colors.redAccent);
+                          ? ("Conectando...", kColorWarn)
+                          : ("Desconectado", Colors.redAccent);
+                  return Tooltip(
+                    message: status == SvcStatus.ready
+                        ? "Servidor LinkDesk Conectado"
+                        : translate(status == SvcStatus.connecting
+                            ? "connecting_status"
+                            : "not_ready_status"),
+                    child: _buildPill(statusText, statusColor),
+                  );
                 }),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: model.serverId,
               builder: (context, value, _) => Row(
@@ -358,9 +365,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                         value.text.isNotEmpty ? value.text : "--- --- ---",
                         style: const TextStyle(
                           fontFamilyFallback: MyTheme.monoFonts,
-                          fontSize: 38,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 3,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2,
                         ),
                       ),
                     ),
@@ -375,9 +382,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF181B21) : MyTheme.grayBg,
                 borderRadius: BorderRadius.circular(12),

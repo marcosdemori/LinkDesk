@@ -6,6 +6,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build LinkDesk Windows Executables
@@ -23,29 +26,32 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
+      - name: Cache vcpkg Dependencies
+        uses: actions/cache@v4
         with:
-          channel: stable
-          flutter-version: '3.24.x'
-          cache: true
+          path: |
+            C:\vcpkg\installed
+            C:\Users\runneradmin\AppData\Local\vcpkg\archives
+          key: ${{ runner.os }}-vcpkg-linkdesk-${{ hashFiles('build/build-windows.ps1') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-linkdesk-
 
-      - name: Setup LLVM / libclang
-        run: |
-          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
-
-      - name: Setup vcpkg and C++ codecs
+      - name: Install C++ Codec Dependencies via vcpkg
         run: |
           vcpkg install opus:x64-windows-static libvpx:x64-windows-static libyuv:x64-windows-static aom:x64-windows-static
-          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
 
       - name: Generate Flutter Rust Bridge Bindings
         run: |
@@ -74,3 +80,16 @@ jobs:
         with:
           name: LinkDesk-Windows-Binaries
           path: release/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && format('LinkDesk {0}', github.ref_name) || 'LinkDesk v1.5.0' }}
+          draft: false
+          prerelease: false
+          files: |
+            release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
