@@ -60,12 +60,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final isSos = isSosMode();
+    if (isSosMode()) {
+      return _buildBlock(
+        child: buildSosView(context, isSosExecutable: true),
+      );
+    }
     return _buildBlock(
       child: Obx(() {
-        if (isSos) {
-          return buildSosView(context, isSosExecutable: true);
-        }
         if (!_isTechnicianMode.value) {
           return buildSosView(context, isSosExecutable: false);
         }

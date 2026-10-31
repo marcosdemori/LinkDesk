@@ -39,6 +39,22 @@ late List<String> kBootArgs;
 Future<void> main(List<String> args) async {
   earlyAssert();
   WidgetsFlutterBinding.ensureInitialized();
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF1E222B),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Text(
+              "Erro ao renderizar tela:\n\n${details.exceptionAsString()}\n\n${details.stack}",
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ),
+        ),
+      ),
+    );
+  };
 
   debugPrint("launch args: $args");
   kBootArgs = List.from(args);
