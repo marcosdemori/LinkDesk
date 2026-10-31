@@ -49,6 +49,9 @@ jobs:
 
       - name: Generate Flutter Rust Bridge Bindings
         run: |
+          cd client/flutter
+          flutter pub get
+          cd ../..
           Invoke-WebRequest -Uri "https://github.com/fzyzcjy/flutter_rust_bridge/releases/download/v1.80.1/flutter_rust_bridge_codegen-x86_64-pc-windows-msvc-v1.80.1.zip" -OutFile "$env:TEMP\frb.zip"
           Expand-Archive -Path "$env:TEMP\frb.zip" -DestinationPath "$env:TEMP\frb" -Force
           cd client

@@ -125,6 +125,16 @@ $BridgeDart = Join-Path $ClientDir "flutter\lib\generated_bridge.dart"
 
 if ((-not (Test-Path $BridgeRs)) -or (-not (Test-Path $BridgeDart))) {
     Write-Host "Verificando bindings do Flutter Rust Bridge..." -ForegroundColor Yellow
+    
+    # Garantir que o package_config.json existe no flutter
+    $PackageConfig = Join-Path $ClientDir "flutter\.dart_tool\package_config.json"
+    if (-not (Test-Path $PackageConfig)) {
+        Write-Host "-> Executando flutter pub get em client\flutter..." -ForegroundColor Cyan
+        Push-Location "$ClientDir\flutter"
+        flutter pub get
+        Pop-Location
+    }
+
     $FrbBin = Join-Path $RepoRoot "tools\flutter_rust_bridge_codegen.exe"
     if (-not (Test-Path $FrbBin)) {
         $FrbZip = Join-Path $env:TEMP "frb_codegen.zip"
@@ -170,11 +180,19 @@ New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 $AppFolder = Join-Path $ReleaseDir $AppName
 New-Item -ItemType Directory -Force -Path $AppFolder | Out-Null
 
+# Copiar Instalador / Executavel Principal
+$FoundInstaller = Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1
+if ($FoundInstaller) {
+    $DestInstaller = Join-Path $ReleaseDir "$AppName.exe"
+    Copy-Item $FoundInstaller $DestInstaller -Force
+    Write-Host "[OK] Instalador Principal gerado: $DestInstaller" -ForegroundColor Green
+}
+
 # Copiar Portable / SOS
 $PossiblePortables = @(
     (Join-Path $ClientDir "rustdesk_portable.exe"),
     (Join-Path $ClientDir "target\release\rustdesk-portable-packer.exe"),
-    (Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1),
+    $FoundInstaller,
     (Join-Path $ClientDir "flutter\build\windows\x64\runner\Release\rustdesk.exe")
 )
 
@@ -192,6 +210,10 @@ if (Test-Path $FlutterRelease) {
     if (Test-Path "$AppFolder\rustdesk.exe") {
         Copy-Item "$AppFolder\rustdesk.exe" "$AppFolder\$AppName.exe" -Force
         Remove-Item "$AppFolder\rustdesk.exe" -Force
+    }
+    # Caso o instalador nao tenha sido gerado, garantir o executavel na raiz do release
+    if (-not (Test-Path (Join-Path $ReleaseDir "$AppName.exe"))) {
+        Copy-Item "$AppFolder\$AppName.exe" (Join-Path $ReleaseDir "$AppName.exe") -Force
     }
     Write-Host "[OK] Pacote Completo gerado em: $AppFolder" -ForegroundColor Green
     Write-Host "[OK] Executavel: $AppFolder\$AppName.exe" -ForegroundColor Green
