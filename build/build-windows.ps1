@@ -108,6 +108,14 @@ if (-not (Get-Command "python" -ErrorAction SilentlyContinue)) {
     $MissingTools += "Python 3 (winget install --id Python.Python.3.11 -e)"
 }
 
+if (-not $env:LIBCLANG_PATH) {
+    $MissingTools += "LLVM / libclang (winget install --id LLVM.LLVM -e)"
+}
+
+if (-not $env:VCPKG_ROOT) {
+    $MissingTools += "vcpkg (git clone https://github.com/microsoft/vcpkg D:\Dev\vcpkg ; D:\Dev\vcpkg\bootstrap-vcpkg.bat)"
+}
+
 if ($MissingTools.Count -gt 0) {
     Write-Host "[!] Faltam ferramentas necessarias para o build local:" -ForegroundColor Red
     foreach ($tool in $MissingTools) {
@@ -118,6 +126,22 @@ if ($MissingTools.Count -gt 0) {
 }
 
 Write-Host "[OK] Todas as ferramentas estao disponiveis!" -ForegroundColor Green
+
+# Codecs C++ (mesmos pacotes do CI). Primeira instalacao demora varios minutos.
+$VcpkgTriplet = "x64-windows-static"
+$VcpkgInclude = Join-Path $env:VCPKG_ROOT "installed\$VcpkgTriplet\include"
+$VcpkgHeaders = @("opus\opus_multistream.h", "vpx\vpx_encoder.h", "libyuv.h", "aom\aom_encoder.h")
+if ($VcpkgHeaders | Where-Object { -not (Test-Path (Join-Path $VcpkgInclude $_)) }) {
+    Write-Host "-> Instalando codecs via vcpkg ($VcpkgTriplet)..." -ForegroundColor Cyan
+    Push-Location $env:VCPKG_ROOT
+    & ".\vcpkg.exe" install "opus:$VcpkgTriplet" "libvpx:$VcpkgTriplet" "libyuv:$VcpkgTriplet" "aom:$VcpkgTriplet"
+    $VcpkgExit = $LASTEXITCODE
+    Pop-Location
+    if ($VcpkgExit -ne 0) {
+        Write-Host "[ERRO] vcpkg install falhou com codigo $VcpkgExit" -ForegroundColor Red
+        exit $VcpkgExit
+    }
+}
 
 # 3. Gerar Bindings Flutter Rust Bridge se necessário
 $BridgeRs = Join-Path $ClientDir "src\bridge_generated.rs"
@@ -146,14 +170,16 @@ if ((-not (Test-Path $BridgeRs)) -or (-not (Test-Path $BridgeDart))) {
     
     Write-Host "-> Gerando bridge_generated.rs e generated_bridge.dart..." -ForegroundColor Cyan
     Push-Location $ClientDir
-    try {
-        & $FrbBin --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --skip-deps-check
-        Write-Host "[OK] Bindings gerados com sucesso!" -ForegroundColor Green
-    } catch {
-        Write-Host "[!] Aviso ao gerar bindings via codegen: $_" -ForegroundColor Yellow
-    } finally {
-        Pop-Location
+    # ffigen procura <llvm-path>\bin\libclang.dll
+    $LlvmRoot = Split-Path -Parent $env:LIBCLANG_PATH
+    & $FrbBin --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --llvm-path $LlvmRoot --skip-deps-check
+    $FrbExit = $LASTEXITCODE
+    Pop-Location
+    if ($FrbExit -ne 0 -or -not (Test-Path $BridgeDart)) {
+        Write-Host "[ERRO] Falha ao gerar bindings do Flutter Rust Bridge (codigo $FrbExit)" -ForegroundColor Red
+        exit 1
     }
+    Write-Host "[OK] Bindings gerados com sucesso!" -ForegroundColor Green
 }
 
 # 4. Injetar Configuracoes e Marca
