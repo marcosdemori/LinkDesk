@@ -1,6 +1,6 @@
 # ==============================================================================
 # LinkDesk - Script de Build Automatizado para Windows
-# Compila o executavel portatil (LinkDesk-SOS.exe) e o instalador (LinkDesk-Setup.exe)
+# Compila o executavel portatil (LinkDesk-SOS.exe) e o instalador (LinkDesk-install.exe)
 # ==============================================================================
 
 param(
@@ -236,8 +236,12 @@ New-Item -ItemType Directory -Force -Path $AppFolder | Out-Null
 # Copiar Instalador / Executavel Principal
 $FoundInstaller = Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1
 if ($FoundInstaller) {
-    $DestInstaller = Join-Path $ReleaseDir "$AppName.exe"
+    # O nome precisa terminar em "install.exe": e isso que faz o executavel abrir a tela de
+    # instalacao (client/src/common.rs is_setup). Com outro nome ele roda como portatil.
+    $DestInstaller = Join-Path $ReleaseDir "$AppName-install.exe"
     Copy-Item $FoundInstaller $DestInstaller -Force
+    # Builds anteriores copiavam o instalador como $AppName.exe, que nao instala.
+    Remove-Item (Join-Path $ReleaseDir "$AppName.exe") -Force -ErrorAction SilentlyContinue
     Write-Host "[OK] Instalador Principal gerado: $DestInstaller" -ForegroundColor Green
 }
 
@@ -265,7 +269,7 @@ if (Test-Path $FlutterRelease) {
         Remove-Item "$AppFolder\rustdesk.exe" -Force
     }
     # Caso o instalador nao tenha sido gerado, garantir o executavel na raiz do release
-    if (-not (Test-Path (Join-Path $ReleaseDir "$AppName.exe"))) {
+    if (-not $FoundInstaller) {
         Copy-Item "$AppFolder\$AppName.exe" (Join-Path $ReleaseDir "$AppName.exe") -Force
     }
     Write-Host "[OK] Pacote Completo gerado em: $AppFolder" -ForegroundColor Green

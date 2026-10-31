@@ -188,10 +188,52 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             ),
           ),
           if (!isOutgoingOnly) buildPresetPasswordWarning(),
-          Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
+          if (isWindows &&
+              !isOutgoingOnly &&
+              !bind.isDisableInstallation() &&
+              !bind.mainIsInstalled())
+            _buildInstallBanner(context),
+          Obx(() => buildHelpCards(stateGlobal.updateUrl.value))
+              .paddingSymmetric(horizontal: 32),
           Expanded(
             child: ConnectionPage(
                 deviceCard: isOutgoingOnly ? null : _buildDeviceCard(context)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Sem instalacao nao ha servico do Windows: fechar a janela encerra o
+  // acesso e nao ha icone na bandeja.
+  Widget _buildInstallBanner(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(32, 18, 32, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: MyTheme.accent.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: MyTheme.accent.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.download_for_offline_outlined,
+              color: MyTheme.accent, size: 22),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              "Instale o LinkDesk para manter o acesso com senha permanente com a janela fechada (ícone na bandeja) e após reiniciar o computador.",
+              style: TextStyle(fontSize: 12.5, height: 1.4),
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.install_desktop_rounded, size: 16),
+            label: const Text("Instalar"),
+            onPressed: () async {
+              await rustDeskWinManager.closeAllSubWindows();
+              bind.mainGotoInstall();
+            },
           ),
         ],
       ),
