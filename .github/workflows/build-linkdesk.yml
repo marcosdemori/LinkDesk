@@ -47,6 +47,13 @@ jobs:
           vcpkg install opus:x64-windows-static libvpx:x64-windows-static libyuv:x64-windows-static aom:x64-windows-static
           echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
 
+      - name: Generate Flutter Rust Bridge Bindings
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/fzyzcjy/flutter_rust_bridge/releases/download/v1.80.1/flutter_rust_bridge_codegen-x86_64-pc-windows-msvc-v1.80.1.zip" -OutFile "$env:TEMP\frb.zip"
+          Expand-Archive -Path "$env:TEMP\frb.zip" -DestinationPath "$env:TEMP\frb" -Force
+          cd client
+          & "$env:TEMP\frb\flutter_rust_bridge_codegen.exe" --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --skip-deps-check
+
       - name: Inject LinkDesk Oracle Cloud Configuration
         run: |
           $hostServer = if ("${{ secrets.SERVER_HOST }}") { "${{ secrets.SERVER_HOST }}" } else { "connect.linkdesk.io" }

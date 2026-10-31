@@ -106,11 +106,38 @@ if ($MissingTools.Count -gt 0) {
 
 Write-Host "[OK] Todas as ferramentas estao disponiveis!" -ForegroundColor Green
 
-# 3. Injetar Configuracoes e Marca
+# 3. Gerar Bindings Flutter Rust Bridge se necessário
+$BridgeRs = Join-Path $ClientDir "src\bridge_generated.rs"
+$BridgeDart = Join-Path $ClientDir "flutter\lib\generated_bridge.dart"
+
+if ((-not (Test-Path $BridgeRs)) -or (-not (Test-Path $BridgeDart))) {
+    Write-Host "Verificando bindings do Flutter Rust Bridge..." -ForegroundColor Yellow
+    $FrbBin = Join-Path $RepoRoot "tools\flutter_rust_bridge_codegen.exe"
+    if (-not (Test-Path $FrbBin)) {
+        $FrbZip = Join-Path $env:TEMP "frb_codegen.zip"
+        $FrbUrl = "https://github.com/fzyzcjy/flutter_rust_bridge/releases/download/v1.80.1/flutter_rust_bridge_codegen-x86_64-pc-windows-msvc-v1.80.1.zip"
+        Write-Host "-> Baixando flutter_rust_bridge_codegen v1.80.1..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $FrbUrl -OutFile $FrbZip -UseBasicParsing
+        Expand-Archive -Path $FrbZip -DestinationPath (Split-Path $FrbBin) -Force
+    }
+    
+    Write-Host "-> Gerando bridge_generated.rs e generated_bridge.dart..." -ForegroundColor Cyan
+    Push-Location $ClientDir
+    try {
+        & $FrbBin --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --skip-deps-check
+        Write-Host "[OK] Bindings gerados com sucesso!" -ForegroundColor Green
+    } catch {
+        Write-Host "[!] Aviso ao gerar bindings via codegen: $_" -ForegroundColor Yellow
+    } finally {
+        Pop-Location
+    }
+}
+
+# 4. Injetar Configuracoes e Marca
 Write-Host "Injetando marca e parametros do servidor..." -ForegroundColor Yellow
 python "$RepoRoot\tools\configure_linkdesk.py" "$AppName" "$ServerHost" "$ServerPubKey"
 
-# 4. Executar o Build
+# 5. Executar o Build
 Write-Host "Iniciando compilacao do core Rust e interface Flutter..." -ForegroundColor Yellow
 Set-Location $ClientDir
 
@@ -125,7 +152,7 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# 5. Organizar os Binarios Finais
+# 6. Organizar os Binarios Finais
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 $AppFolder = Join-Path $ReleaseDir $AppName
 New-Item -ItemType Directory -Force -Path $AppFolder | Out-Null
