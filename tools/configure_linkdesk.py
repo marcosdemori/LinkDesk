@@ -33,10 +33,10 @@ def replace_in_file(file_path, pattern, replacement):
         print(f"[-] Nenhuma ocorrencia encontrada para o padrao em {os.path.basename(file_path)}")
         return False
 
-def configure(app_name="LinkDesk", server_host="connect.linkdesk.io", pub_key=""):
+def configure(app_name="LinkDesk", server_host="", pub_key=""):
     print("=== Configurando LinkDesk ===")
     print(f"Nome do App       : {app_name}")
-    print(f"Host do Servidor  : {server_host}")
+    print(f"Host do Servidor  : {server_host if server_host else '(Manter config.rs)'}")
     print(f"Chave Publica     : {pub_key if pub_key else '(Manter padrao temporario)'}")
     print("------------------------------------------")
 
@@ -95,7 +95,7 @@ def configure(app_name="LinkDesk", server_host="connect.linkdesk.io", pub_key=""
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Configurador de parametros do LinkDesk")
     parser.add_argument("pos_name", nargs="?", default="LinkDesk", help="Nome do App")
-    parser.add_argument("pos_host", nargs="?", default="connect.linkdesk.io", help="Host do Servidor")
+    parser.add_argument("pos_host", nargs="?", default="", help="Host do Servidor (vazio mantem o de config.rs)")
     parser.add_argument("pos_key", nargs="?", default="", help="Chave Publica")
     parser.add_argument("-n", "--name", dest="name", help="Nome do App")
     parser.add_argument("-s", "--server", dest="server", help="Host do Servidor")
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     app_name = args.name or args.pos_name or "LinkDesk"
-    server_host = args.server or args.pos_host or "connect.linkdesk.io"
+    server_host = args.server or args.pos_host or ""
     pub_key = args.key or args.pos_key or ""
 
     configure(app_name, server_host, pub_key)

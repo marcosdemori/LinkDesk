@@ -5,7 +5,8 @@
 
 param(
     [string]$AppName = "LinkDesk",
-    [string]$ServerHost = "connect.linkdesk.io",
+    # Vazio mantem o servidor definido em client/libs/hbb_common/src/config.rs
+    [string]$ServerHost = "",
     [string]$ServerPubKey = "",
     [switch]$SkipCargo = $false
 )
@@ -19,7 +20,7 @@ Write-Host "==========================================================" -Foregro
 Write-Host "             LinkDesk - Build para Windows                " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "App Name   : $AppName"
-Write-Host "Servidor   : $ServerHost"
+Write-Host "Servidor   : $(if ($ServerHost) { $ServerHost } else { '(Mantido de config.rs)' })"
 Write-Host "Chave Pub  : $(if ($ServerPubKey) { $ServerPubKey } else { '(Padrao / Nao informada)' })"
 Write-Host "----------------------------------------------------------"
 
@@ -50,17 +51,40 @@ if (Test-Path "D:\Dev\.rustup") {
 $env:CARGO_BUILD_JOBS = "4"
 $env:RUST_MIN_STACK = "67108864"
 
-$CandidateFlutter = @(
-    "D:\Dev\flutter\bin",
-    "C:\src\flutter\bin"
-)
-foreach ($f in $CandidateFlutter) {
-    if (Test-Path $f) {
-        if ($env:Path -notlike "*$f*") { $env:Path = "$f;" + $env:Path }
-        $env:FLUTTER_ROOT = Split-Path -Parent $f
-        break
+# Windows x64 compila com o mesmo Flutter fixo do CI (client/.github/workflows/flutter-build.yml):
+# dependencias como extended_text/google_fonts nao compilam em Flutter mais novo.
+$FlutterVersion = "3.24.5"
+$FlutterRoot = Join-Path $DevRoot "flutter-$FlutterVersion"
+if (-not (Test-Path "$FlutterRoot\bin\flutter.bat")) {
+    Write-Host "-> Instalando Flutter $FlutterVersion em $FlutterRoot (uma vez)..." -ForegroundColor Cyan
+    git clone https://github.com/flutter/flutter.git -b $FlutterVersion --depth 1 $FlutterRoot
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERRO] Falha ao clonar Flutter $FlutterVersion" -ForegroundColor Red
+        exit 1
     }
+    git -C $FlutterRoot apply (Join-Path $RepoRoot "client\.github\patches\flutter_3.24.4_dropdown_menu_enableFilter.diff")
+    & "$FlutterRoot\bin\flutter.bat" precache --windows
+    # https://github.com/flutter/flutter/issues/155685 - engine customizado usado pelo CI
+    $EngineZip = Join-Path $env:TEMP "windows-x64-release.zip"
+    $EngineTmp = Join-Path $env:TEMP "windows-x64-release"
+    Invoke-WebRequest -Uri "https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip" -OutFile $EngineZip -UseBasicParsing
+    Expand-Archive -Path $EngineZip -DestinationPath $EngineTmp -Force
+    Copy-Item "$EngineTmp\*" "$FlutterRoot\bin\cache\artifacts\engine\windows-x64-release\" -Recurse -Force
 }
+# Flutter 3.24 so conhece os geradores CMake do VS 2019/2022; ensina o do VS 2026 (versao 18).
+$VsToolDart = "$FlutterRoot\packages\flutter_tools\lib\src\windows\visual_studio.dart"
+if (-not (Select-String -Path $VsToolDart -SimpleMatch "Visual Studio 18 2026" -Quiet)) {
+    $VsSrc = [IO.File]::ReadAllText($VsToolDart).Replace(
+        "17 => 'Visual Studio 17 2022',",
+        "17 => 'Visual Studio 17 2022',`n      18 => 'Visual Studio 18 2026',")
+    [IO.File]::WriteAllText($VsToolDart, $VsSrc, (New-Object Text.UTF8Encoding $false))
+    Remove-Item "$FlutterRoot\bin\cache\flutter_tools.stamp" -Force -ErrorAction SilentlyContinue
+    # Cache CMake gerado por outro Flutter/gerador impede a configuracao.
+    Remove-Item (Join-Path $ClientDir "flutter\build\windows") -Recurse -Force -ErrorAction SilentlyContinue
+}
+$FlutterBin = Join-Path $FlutterRoot "bin"
+$env:Path = "$FlutterBin;" + $env:Path
+$env:FLUTTER_ROOT = $FlutterRoot
 
 $CandidateVcpkg = @(
     "D:\Dev\vcpkg",
@@ -189,6 +213,9 @@ python "$RepoRoot\tools\configure_linkdesk.py" "$AppName" "$ServerHost" "$Server
 # 5. Executar o Build
 Write-Host "Iniciando compilacao do core Rust e interface Flutter..." -ForegroundColor Yellow
 Set-Location $ClientDir
+
+# build.py renomeia rustdesk_portable.exe -> rustdesk-<versao>-install.exe e falha se o do build anterior existir.
+Remove-Item (Join-Path $ClientDir "rustdesk_portable.exe"), (Join-Path $ClientDir "rustdesk-*-install.exe") -Force -ErrorAction SilentlyContinue
 
 if ($SkipCargo) {
     python build.py --flutter --skip-cargo
