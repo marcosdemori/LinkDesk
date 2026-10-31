@@ -85,7 +85,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.5.0' }}
           name: ${{ startsWith(github.ref, 'refs/tags/') && format('LinkDesk {0}', github.ref_name) || 'LinkDesk v1.5.0' }}
           draft: false
           prerelease: false
