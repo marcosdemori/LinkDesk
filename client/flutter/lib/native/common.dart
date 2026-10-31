@@ -13,3 +13,18 @@ final isDesktop_ = Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 final isWebOnWindows_ = false;
 final isWebOnLinux_ = false;
 final isWebOnMacOS_ = false;
+
+bool isSosMode_() {
+  try {
+    final exe = Platform.resolvedExecutable.toLowerCase();
+    final appNameEnv =
+        Platform.environment['LINKDESK_APPNAME']?.toLowerCase() ?? '';
+    if (exe.contains('sos') ||
+        exe.contains('qa') ||
+        appNameEnv.contains('sos') ||
+        appNameEnv.contains('qa')) {
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}

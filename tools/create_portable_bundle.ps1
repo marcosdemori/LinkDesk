@@ -40,7 +40,7 @@ Write-Host "Destino       : $TargetDir" -ForegroundColor Yellow
 Write-Host "----------------------------------------------------------"
 
 $CleanFileName = "LinkDesk-SOS.exe"
-$AutoConfigFileName = if ($ServerKey) { "LinkDesk-host=${ServerHost},key=${ServerKey}.exe" } else { "LinkDesk-host=${ServerHost}.exe" }
+$AutoConfigFileName = if ($ServerKey) { "LinkDesk-host=${ServerHost},key=${ServerKey}-SOS.exe" } else { "LinkDesk-host=${ServerHost}-SOS.exe" }
 
 $CleanPath = Join-Path $TargetDir $CleanFileName
 $AutoConfigPath = Join-Path $TargetDir $AutoConfigFileName

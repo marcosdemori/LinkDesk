@@ -165,6 +165,12 @@ pub fn core_main() -> Option<CoreMainAction> {
                 || config::LocalConfig::get_option("pre-elevate-service") == "Y"
                 || (!click_setup && crate::platform::is_elevated(None).unwrap_or(false)));
         crate::portable_service::client::set_quick_support(_is_quick_support);
+        if _is_quick_support {
+            hbb_common::config::HARD_SETTINGS
+                .write()
+                .unwrap()
+                .insert("conn-type".to_string(), "incoming".to_string());
+        }
     }
     let mut log_name = "".to_owned();
     // Keep portable-service logs under a stable directory name.
@@ -906,5 +912,12 @@ fn parse_silent_install_args(args: &[String]) -> (Option<bool>, bool) {
 #[inline]
 fn is_quick_support_exe(exe: &str) -> bool {
     let exe = exe.to_lowercase();
-    exe.contains("-qs-") || exe.contains("-qs.exe") || exe.contains("_qs.exe")
+    exe.contains("-qs-")
+        || exe.contains("-qs.exe")
+        || exe.contains("_qs.exe")
+        || exe.contains("-sos-")
+        || exe.contains("-sos.exe")
+        || exe.contains("_sos.exe")
+        || exe.contains("linkdesk-sos")
+        || exe.contains("linkdesk-qa")
 }

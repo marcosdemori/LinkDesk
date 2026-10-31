@@ -24,6 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
 import '../widgets/button.dart';
+import 'package:flutter_hbb/desktop/services/linkdesk_update_service.dart';
 
 class DesktopHomePage extends StatefulWidget {
   const DesktopHomePage({Key? key}) : super(key: key);
@@ -59,23 +60,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final isIncomingOnly = bind.isIncomingOnly();
+    final isSos = isSosMode();
     return _buildBlock(
       child: Obx(() {
-        if (!isIncomingOnly && !_isTechnicianMode.value) {
-          return buildSosView(context);
+        if (isSos) {
+          return buildSosView(context, isSosExecutable: true);
         }
-        if (isIncomingOnly) {
-          return Column(
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [buildLeftPane(context)],
-                ),
-              ),
-            ],
-          );
+        if (!_isTechnicianMode.value) {
+          return buildSosView(context, isSosExecutable: false);
         }
         return Row(
           children: [
@@ -139,6 +131,22 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         children: [
           item(Icons.home_outlined, "Início", null, active: true),
           const Spacer(),
+          Obx(() {
+            final hasUp = LinkDeskUpdateService.instance.hasUpdate.value;
+            return item(
+              Icons.system_update_alt_rounded,
+              hasUp ? "Atualização Disponível!" : "Verificar Atualização",
+              () {
+                if (hasUp) {
+                  LinkDeskUpdateService.instance.showUpdateModal(context);
+                } else {
+                  LinkDeskUpdateService.instance.checkForUpdates(manual: true);
+                }
+              },
+              active: hasUp,
+            );
+          }),
+          const SizedBox(height: 6),
           item(Icons.shield_outlined, "Modo Suporte (SOS)",
               () => _isTechnicianMode.value = false),
           const SizedBox(height: 6),
@@ -193,6 +201,41 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               !bind.isDisableInstallation() &&
               !bind.mainIsInstalled())
             _buildInstallBanner(context),
+          Obx(() {
+            if (LinkDeskUpdateService.instance.hasUpdate.value) {
+              return Container(
+                margin: const EdgeInsets.fromLTRB(32, 10, 32, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: MyTheme.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: MyTheme.accent.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.rocket_launch_rounded, color: MyTheme.accent, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Nova versão disponível: v${LinkDeskUpdateService.instance.latestVersion.value}",
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: MyTheme.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                      onPressed: () => LinkDeskUpdateService.instance.showUpdateModal(context),
+                      child: const Text("Atualizar"),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
           Obx(() => buildHelpCards(stateGlobal.updateUrl.value))
               .paddingSymmetric(horizontal: 32),
           Expanded(
@@ -393,7 +436,18 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             color: color),
       );
 
-  Widget buildSosView(BuildContext context) {
+  String _formatSosId(String id) {
+    final clean = id.replaceAll(' ', '');
+    if (clean.length == 9) {
+      return '${clean.substring(0, 3)} ${clean.substring(3, 6)} ${clean.substring(6, 9)}';
+    }
+    if (clean.length == 10) {
+      return '${clean.substring(0, 3)} ${clean.substring(3, 6)} ${clean.substring(6, 10)}';
+    }
+    return id;
+  }
+
+  Widget buildSosView(BuildContext context, {bool isSosExecutable = false}) {
     return ChangeNotifierProvider.value(
       value: gFFI.serverModel,
       child: Consumer<ServerModel>(
@@ -410,7 +464,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               children: [
                 // Barra Superior do LinkDesk SOS
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.background,
                     border: Border(bottom: BorderSide(color: borderCol, width: 1)),
@@ -419,31 +473,105 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                     children: [
                       loadLogo(),
                       const Spacer(),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.support_agent_rounded, size: 18),
-                        label: const Text("Modo Técnico"),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? MyTheme.accent : MyTheme.button,
-                          side: BorderSide(color: MyTheme.accent.withOpacity(0.5)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      // Status Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF16A34A).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.3)),
                         ),
-                        onPressed: () {
-                          _isTechnicianMode.value = true;
-                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.circle, color: Color(0xFF16A34A), size: 9),
+                            SizedBox(width: 6),
+                            Text(
+                              "Pronto",
+                              style: TextStyle(
+                                color: Color(0xFF16A34A),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      buildPopupMenu(context),
+                      if (!isSosExecutable) ...[
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.support_agent_rounded, size: 18),
+                          label: const Text("Modo Técnico"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: isDark ? MyTheme.accent : MyTheme.button,
+                            side: BorderSide(color: MyTheme.accent.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          onPressed: () {
+                            _isTechnicianMode.value = true;
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        buildPopupMenu(context),
+                      ],
                     ],
                   ),
                 ),
+
+                // Alerta de Atualização (se disponível)
+                Obx(() {
+                  if (LinkDeskUpdateService.instance.hasUpdate.value) {
+                    return Container(
+                      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            MyTheme.accent.withOpacity(0.18),
+                            MyTheme.accent.withOpacity(0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: MyTheme.accent.withOpacity(0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.rocket_launch_rounded, color: MyTheme.accent, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "Nova versão v${LinkDeskUpdateService.instance.latestVersion.value} disponível!",
+                              style: TextStyle(
+                                color: textMain,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => LinkDeskUpdateService.instance.showUpdateModal(context),
+                            style: TextButton.styleFrom(
+                              backgroundColor: MyTheme.accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text("Atualizar", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
 
                 // Conteúdo Central
                 Expanded(
                   child: Center(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 540),
+                        constraints: const BoxConstraints(maxWidth: 480),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -456,26 +584,26 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                 border: Border.all(color: borderCol, width: 1),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                                    blurRadius: 16,
+                                    color: Colors.black.withOpacity(isDark ? 0.35 : 0.05),
+                                    blurRadius: 18,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(22),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   // Título do Card
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(8),
+                                        padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
-                                          color: MyTheme.accent.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: MyTheme.accent.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
-                                        child: const Icon(Icons.shield_rounded, color: MyTheme.accent, size: 24),
+                                        child: const Icon(Icons.headset_mic_rounded, color: MyTheme.accent, size: 24),
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
@@ -483,19 +611,19 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              "Permitir Suporte Remoto",
+                                              "Acesso Rápido para Suporte",
                                               style: TextStyle(
                                                 color: textMain,
-                                                fontSize: 18,
+                                                fontSize: 17,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
-                                              "Forneça o ID e a Senha abaixo ao seu técnico de TI:",
+                                              "Informe os dados abaixo ao técnico para liberar o acesso:",
                                               style: TextStyle(
                                                 color: textMuted,
-                                                fontSize: 13,
+                                                fontSize: 12,
                                               ),
                                             ),
                                           ],
@@ -503,15 +631,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 24),
+                                  const SizedBox(height: 20),
 
                                   // Bloco do ID
                                   Container(
-                                    padding: const EdgeInsets.all(16),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                     decoration: BoxDecoration(
-                                      color: MyTheme.accent.withOpacity(isDark ? 0.15 : 0.05),
+                                      color: MyTheme.accent.withOpacity(isDark ? 0.12 : 0.04),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: MyTheme.accent.withOpacity(0.3), width: 1.5),
+                                      border: Border.all(color: MyTheme.accent.withOpacity(0.35), width: 1.5),
                                     ),
                                     child: Row(
                                       children: [
@@ -520,9 +648,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Row(
-                                                children: [
-                                                  const Icon(Icons.tag_rounded, size: 14, color: MyTheme.accent),
-                                                  const SizedBox(width: 4),
+                                                children: const [
+                                                  Icon(Icons.tag_rounded, size: 13, color: MyTheme.accent),
+                                                  SizedBox(width: 4),
                                                   Text(
                                                     "SEU ID LINKDESK",
                                                     style: TextStyle(
@@ -537,24 +665,27 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                               const SizedBox(height: 6),
                                               SelectableText(
                                                 model.serverId.text.isNotEmpty
-                                                    ? model.serverId.text
+                                                    ? _formatSosId(model.serverId.text)
                                                     : "--- --- ---",
                                                 style: TextStyle(
                                                   color: textMain,
                                                   fontFamilyFallback: MyTheme.monoFonts,
-                                                  fontSize: 30,
-                                                  fontWeight: FontWeight.w500,
-                                                  letterSpacing: 3,
+                                                  fontSize: 26,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 2,
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
                                         ElevatedButton.icon(
-                                          icon: const Icon(Icons.copy_rounded, size: 16),
+                                          icon: const Icon(Icons.copy_rounded, size: 15),
                                           label: const Text("Copiar ID"),
                                           style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                            backgroundColor: MyTheme.accent,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
                                           onPressed: () {
                                             if (model.serverId.text.isNotEmpty) {
@@ -566,11 +697,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 14),
 
                                   // Bloco da Senha Temporária
                                   Container(
-                                    padding: const EdgeInsets.all(16),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                     decoration: BoxDecoration(
                                       color: isDark ? const Color(0xFF181B21) : MyTheme.grayBg,
                                       borderRadius: BorderRadius.circular(12),
@@ -584,7 +715,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                             children: [
                                               Row(
                                                 children: [
-                                                  Icon(Icons.key_rounded, size: 14, color: textMuted),
+                                                  Icon(Icons.key_rounded, size: 13, color: textMuted),
                                                   const SizedBox(width: 4),
                                                   Text(
                                                     "SENHA TEMPORÁRIA",
@@ -606,7 +737,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                                   color: isDark ? MyTheme.accent : MyTheme.idColor,
                                                   fontFamilyFallback: MyTheme.monoFonts,
                                                   fontSize: 22,
-                                                  fontWeight: FontWeight.w500,
+                                                  fontWeight: FontWeight.bold,
                                                   letterSpacing: 2,
                                                 ),
                                               ),
@@ -616,9 +747,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                         IconButton(
                                           tooltip: "Gerar Nova Senha",
                                           icon: const Icon(Icons.refresh_rounded, color: MyTheme.accent),
-                                          onPressed: () => bind.mainUpdateTemporaryPassword(),
+                                          onPressed: () {
+                                            bind.mainUpdateTemporaryPassword();
+                                            showToast("Nova senha gerada!");
+                                          },
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: 4),
                                         OutlinedButton.icon(
                                           icon: const Icon(Icons.copy_rounded, size: 15),
                                           label: const Text("Copiar"),
@@ -638,23 +772,49 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 18),
 
-                                  // Status da Conexão
+                                  // Botão Principal de Copiar Tudo para Suporte
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.copy_all_rounded, size: 18),
+                                    label: const Text(
+                                      "Copiar ID e Senha para o Suporte",
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: MyTheme.accent,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      elevation: 2,
+                                    ),
+                                    onPressed: () {
+                                      final id = model.serverId.text.trim();
+                                      final pw = model.serverPasswd.text.trim();
+                                      if (id.isNotEmpty) {
+                                        final copyText = "LinkDesk Suporte Remoto\nID: $id\nSenha: $pw";
+                                        Clipboard.setData(ClipboardData(text: copyText));
+                                        showToast("Dados de acesso copiados! Cole no chat do suporte.");
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Status da Conexão e Garantia de Segurança
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF16A34A).withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(10),
                                       border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.2)),
                                     ),
                                     child: Row(
-                                      children: [
-                                        const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16),
-                                        const SizedBox(width: 8),
-                                        const Expanded(
+                                      children: const [
+                                        Icon(Icons.shield_rounded, color: Color(0xFF16A34A), size: 18),
+                                        SizedBox(width: 10),
+                                        Expanded(
                                           child: Text(
-                                            "Pronto para conexão • Servidor LinkDesk Seguro",
+                                            "Conexão Segura Criptografada de Ponta a Ponta (E2EE)",
                                             style: TextStyle(
                                               color: Color(0xFF15803D),
                                               fontSize: 12,
@@ -668,12 +828,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
 
-                            // Rodapé com Informações de Segurança
+                            // Rodapé
                             Center(
                               child: Text(
-                                "LinkDesk • Conexão Criptografada de Ponta a Ponta (E2EE)",
+                                "LinkDesk • Conexão Direta e Segura",
                                 style: TextStyle(
                                   color: textMuted,
                                   fontSize: 11,
@@ -1311,6 +1471,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   void initState() {
     super.initState();
+    if (!isSosMode()) {
+      _isTechnicianMode.value = true;
+    }
     _updateTimer = periodic_immediate(const Duration(seconds: 1), () async {
       await gFFI.serverModel.fetchID();
       final error = await bind.mainGetError();

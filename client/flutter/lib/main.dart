@@ -10,6 +10,7 @@ import 'package:flutter_hbb/common/widgets/overlay.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/pages/install_page.dart';
 import 'package:flutter_hbb/desktop/pages/server_page.dart';
+import 'package:flutter_hbb/desktop/services/linkdesk_update_service.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_file_transfer_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_view_camera_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_port_forward_screen.dart';
@@ -134,6 +135,7 @@ void runMainApp(bool startService) async {
   // register uni links
   await initEnv(kAppTypeMain);
   checkUpdate();
+  LinkDeskUpdateService.instance.init();
   // trigger connection status updater
   await bind.mainCheckConnectStatus();
   if (startService) {
@@ -167,9 +169,15 @@ void runMainApp(bool startService) async {
       rustDeskWinManager.registerActiveWindow(kWindowMainId);
     }
     windowManager.setOpacity(1);
-    windowManager.setTitle(getWindowName());
-    // Do not use `windowManager.setResizable()` here.
-    setResizable(!bind.isIncomingOnly());
+    if (isSosMode()) {
+      windowManager.setTitle('LinkDesk - Suporte Rápido');
+      windowManager.setSize(getIncomingOnlyHomeSize());
+      windowManager.center();
+      setResizable(false);
+    } else {
+      windowManager.setTitle(getWindowName());
+      setResizable(!bind.isIncomingOnly());
+    }
   });
 }
 

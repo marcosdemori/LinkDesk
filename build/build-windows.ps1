@@ -233,31 +233,23 @@ New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 $AppFolder = Join-Path $ReleaseDir $AppName
 New-Item -ItemType Directory -Force -Path $AppFolder | Out-Null
 
-# Copiar Instalador / Executavel Principal
+# Copiar Instalador, SOS e Versao Completa
 $FoundInstaller = Get-ChildItem -Path $ClientDir -Filter "rustdesk-*-install.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1
 if ($FoundInstaller) {
-    # O nome precisa terminar em "install.exe": e isso que faz o executavel abrir a tela de
-    # instalacao (client/src/common.rs is_setup). Com outro nome ele roda como portatil.
+    # 1. Instalador completo (executa assistente ao terminar em 'install.exe')
     $DestInstaller = Join-Path $ReleaseDir "$AppName-install.exe"
     Copy-Item $FoundInstaller $DestInstaller -Force
-    # Builds anteriores copiavam o instalador como $AppName.exe, que nao instala.
-    Remove-Item (Join-Path $ReleaseDir "$AppName.exe") -Force -ErrorAction SilentlyContinue
     Write-Host "[OK] Instalador Principal gerado: $DestInstaller" -ForegroundColor Green
-}
 
-# Copiar Portable / SOS
-$PossiblePortables = @(
-    (Join-Path $ClientDir "rustdesk_portable.exe"),
-    (Join-Path $ClientDir "target\release\rustdesk-portable-packer.exe"),
-    $FoundInstaller,
-    (Join-Path $ClientDir "flutter\build\windows\x64\runner\Release\rustdesk.exe")
-)
+    # 2. Executavel Portatil SOS (Acesso Rapido 100% enxuto para cliente final)
+    $DestSOS = Join-Path $ReleaseDir "$AppName-SOS.exe"
+    Copy-Item $FoundInstaller $DestSOS -Force
+    Write-Host "[OK] Executavel Portatil SOS gerado: $DestSOS" -ForegroundColor Green
 
-$FoundPortable = $PossiblePortables | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
-if ($FoundPortable) {
-    $DestPortable = Join-Path $ReleaseDir "$AppName-SOS.exe"
-    Copy-Item $FoundPortable $DestPortable -Force
-    Write-Host "[OK] Executavel Portatil (SOS) gerado: $DestPortable" -ForegroundColor Green
+    # 3. Executavel Portatil Completo (Modo Tecnico)
+    $DestFull = Join-Path $ReleaseDir "$AppName.exe"
+    Copy-Item $FoundInstaller $DestFull -Force
+    Write-Host "[OK] Executavel Tecnico Portatil gerado: $DestFull" -ForegroundColor Green
 }
 
 # Copiar Pasta Completa do Aplicativo

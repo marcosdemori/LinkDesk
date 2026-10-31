@@ -16,3 +16,5 @@ final _localOs = js.context.callMethod('getByName', ['local_os', '']);
 final isWebOnWindows_ = _localOs == kPeerPlatformWindows;
 final isWebOnLinux_ = _localOs == kPeerPlatformLinux;
 final isWebOnMacOS_ = _localOs == kPeerPlatformMacOS;
+
+bool isSosMode_() => false;

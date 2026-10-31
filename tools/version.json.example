@@ -1,0 +1,7 @@
+{
+  "version": "1.5.0",
+  "url": "https://github.com/marcosdemori/LinkDesk/releases/latest",
+  "download_url": "https://github.com/marcosdemori/LinkDesk/releases/download/v1.5.0/LinkDesk-install.exe",
+  "sos_download_url": "https://github.com/marcosdemori/LinkDesk/releases/download/v1.5.0/LinkDesk-SOS.exe",
+  "changelog": "- Interface Acesso Rápido (SOS) 100% minimalista e enxuta para clientes finais.\n- Sistema de Atualização Automática via GitHub Releases e endpoint corporativo.\n- Novo botão de ação rápida para copiar ID e Senha em 1 clique.\n- Melhorias de latência (60 FPS padrão) e nova identidade visual Grafite."
+}
