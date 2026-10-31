@@ -166,32 +166,33 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         : hour < 18
             ? "Boa tarde"
             : "Boa noite";
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: Column(
+    final header = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            padding: const EdgeInsets.only(top: 16),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(greeting,
-                        style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3)),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Compartilhe seu ID para receber suporte ou conecte-se a outro dispositivo.",
-                      style: TextStyle(
-                          fontSize: 13, color: Theme.of(context).hintColor),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(greeting,
+                          style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.3)),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Compartilhe seu ID para receber suporte ou conecte-se a outro dispositivo.",
+                        style: TextStyle(
+                            fontSize: 13, color: Theme.of(context).hintColor),
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 12),
                 _buildPill("Modo técnico", MyTheme.accent),
               ],
             ),
@@ -205,7 +206,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           Obx(() {
             if (LinkDeskUpdateService.instance.hasUpdate.value) {
               return Container(
-                margin: const EdgeInsets.fromLTRB(32, 10, 32, 0),
+                margin: const EdgeInsets.only(top: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: MyTheme.accent.withOpacity(0.12),
@@ -237,14 +238,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             }
             return const SizedBox.shrink();
           }),
-          Obx(() => buildHelpCards(stateGlobal.updateUrl.value))
-              .paddingSymmetric(horizontal: 32),
-          Expanded(
-            child: ConnectionPage(
-                deviceCard: isOutgoingOnly ? null : _buildDeviceCard(context)),
-          ),
-        ],
-      ),
+          Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
+        ]);
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: ConnectionPage(
+          header: header,
+          deviceCard: isOutgoingOnly ? null : _buildDeviceCard(context)),
     );
   }
 
@@ -252,7 +252,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   // acesso e nao ha icone na bandeja.
   Widget _buildInstallBanner(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(32, 18, 32, 0),
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       decoration: BoxDecoration(
         color: MyTheme.accent.withOpacity(0.10),

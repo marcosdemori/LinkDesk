@@ -149,10 +149,14 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
 
 /// Connection page for connecting to a remote peer.
 class ConnectionPage extends StatefulWidget {
-  const ConnectionPage({Key? key, this.deviceCard}) : super(key: key);
+  const ConnectionPage({Key? key, this.deviceCard, this.header})
+      : super(key: key);
 
   /// Content of the "this device" card shown beside the connect card.
   final Widget? deviceCard;
+
+  /// Shown above the cards; scrolls with them when the window is short.
+  final Widget? header;
 
   @override
   State<ConnectionPage> createState() => _ConnectionPageState();
@@ -293,17 +297,38 @@ class _ConnectionPageState extends State<ConnectionPage>
               ),
             );
 
+      final header = widget.header;
+      final top = <Widget>[
+        if (header != null) header,
+        topSection.marginOnly(top: 10),
+        const SizedBox(height: 12),
+      ];
       return Column(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                topSection.marginOnly(top: 10),
-                const SizedBox(height: 12),
-                Expanded(child: PeerTabPage()),
-              ],
-            ).paddingSymmetric(horizontal: 24),
+            child: LayoutBuilder(builder: (context, area) {
+              // Stacked cards need more height; below this the cards and the
+              // device list would squeeze each other, so the page scrolls and
+              // the list keeps a fixed height instead.
+              final minHeight = isNarrow ? 900.0 : 640.0;
+              if (area.maxHeight >= minHeight) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [...top, Expanded(child: PeerTabPage())],
+                ).paddingSymmetric(horizontal: 24);
+              }
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...top,
+                    SizedBox(height: 380, child: PeerTabPage()),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              );
+            }),
           ),
           if (!isOutgoingOnly) const Divider(height: 1),
           if (!isOutgoingOnly) OnlineStatusWidget(),
