@@ -22,6 +22,7 @@ client/logs/
 
 # Compiled release binaries (use GitHub Releases)
 release/
+tools/*.exe
 
 # OS & IDE
 .vscode/

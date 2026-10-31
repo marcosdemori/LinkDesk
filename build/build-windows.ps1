@@ -24,6 +24,13 @@ Write-Host "Chave Pub  : $(if ($ServerPubKey) { $ServerPubKey } else { '(Padrao 
 Write-Host "----------------------------------------------------------"
 
 # 1. Carregar caminhos padrao no PATH da sessao atual (suporte a C:\ e D:\Dev)
+# Redirecionar todo o ambiente Rust, Flutter e arquivos temporarios para o disco D:\Dev protegendo o C:\
+$DevRoot = "D:\Dev"
+$DevTmp = Join-Path $DevRoot "tmp"
+if (-not (Test-Path $DevTmp)) { New-Item -ItemType Directory -Path $DevTmp -Force | Out-Null }
+$env:TEMP = $DevTmp
+$env:TMP = $DevTmp
+
 $CandidateCargo = @(
     "D:\Dev\.cargo\bin",
     "C:\Users\Marcos De Mori\.cargo\bin",
@@ -36,6 +43,12 @@ foreach ($c in $CandidateCargo) {
         break
     }
 }
+
+if (Test-Path "D:\Dev\.rustup") {
+    $env:RUSTUP_HOME = "D:\Dev\.rustup"
+}
+$env:CARGO_BUILD_JOBS = "4"
+$env:RUST_MIN_STACK = "67108864"
 
 $CandidateFlutter = @(
     "D:\Dev\flutter\bin",
